@@ -3,5 +3,7 @@
 int main(void) {
     initializeCommonBoardFunctions("DoorLockContoller");
 
+    while (1);
+
     return 0;
 }

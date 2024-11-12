@@ -1,6 +1,8 @@
 #include "bluetooth.h"
 #include "usart.h"
 
+#include "globals.h"
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <string.h>

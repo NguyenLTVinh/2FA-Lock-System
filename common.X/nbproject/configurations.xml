@@ -8,6 +8,8 @@
       <itemPath>bluetooth.h</itemPath>
       <itemPath>usart.h</itemPath>
       <itemPath>globals.h</itemPath>
+      <itemPath>two_wire_interface.h</itemPath>
+      <itemPath>button.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -24,6 +26,8 @@
       <itemPath>common_main.c</itemPath>
       <itemPath>bluetooth.c</itemPath>
       <itemPath>usart.c</itemPath>
+      <itemPath>button.c</itemPath>
+      <itemPath>two_wire_interface.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
