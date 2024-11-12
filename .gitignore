@@ -1,0 +1,16 @@
+~*.*
+build
+debug
+dist
+disassembly/
+.generated_files
+*.X/nbproject/private
+*.X/nbproject/*.mk
+*.X/nbproject/*.bash
+*.X/nbproject/Makefile-genesis.properties
+*.X/nbproject/queuelogs
+
+# MCC specific
+*mc3.bak*
+
+*.exe
