@@ -5,11 +5,9 @@
 extern "C" {
 #endif
 
-#ifndef F_CPU
-#define F_CPU 3333333
-#endif
+#include "globals.h"
 
-    void initializeCommonBoardFunctions(void);
+    void initializeCommonBoardFunctions(const char *const name);
 
 #ifdef	__cplusplus
 }

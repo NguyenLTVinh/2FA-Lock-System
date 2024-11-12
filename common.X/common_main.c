@@ -1,5 +1,6 @@
 #include "main.h"
+#include "bluetooth.h"
 
-void initializeCommonBoardFunctions(void) {
-
+void initializeCommonBoardFunctions(const char *const name) {
+    initializeBluetooth(name);
 }

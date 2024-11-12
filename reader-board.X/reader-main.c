@@ -1,7 +1,7 @@
 #include "../common.X/main.h"
 
 int main(void) {
-    initializeCommonBoardFunctions();
+    initializeCommonBoardFunctions("DoorLockReader");
 
     return 0;
 }
