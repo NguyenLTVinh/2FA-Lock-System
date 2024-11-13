@@ -5,7 +5,8 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define TWI_WRITE 0
+const uint8_t TWI_WRITE = 0;
+const uint8_t TWI_READ = 1;
 
 void initializeTwi(void) {
     // Set the SDA and SCL registers to output
@@ -43,9 +44,11 @@ uint8_t twiWait(void) {
     return iterations == UINT8_MAX;
 }
 
-void twiWriteBytes(const uint8_t address, const uint8_t * const data, const uint8_t length) {
+uint8_t twiWriteBytes(const uint8_t address, const uint8_t * const data, const uint8_t length) {
     // Address the destination microcontroller in write mode
     TWI0.MADDR = (address << 1) | TWI_WRITE;
+
+    uint8_t bytes_written = 0;
 
     if (twiWait()) {
         goto endTransmission;
@@ -58,9 +61,47 @@ void twiWriteBytes(const uint8_t address, const uint8_t * const data, const uint
         if (twiWait()) {
             goto endTransmission;
         }
+
+        ++bytes_written;
     }
 
     // Stop the bus (terminate transmission)
 endTransmission:
     TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+
+    return bytes_written;
+}
+
+uint8_t twiReadBytes(const uint8_t address, uint8_t * const buffer, const uint8_t length) {
+    // Address the destination microcontroller in write mode
+    TWI0.MADDR = (address << 1) | TWI_READ;
+
+    if (twiWait()) {
+        goto endTransmission;
+    }
+
+    TWI0.MSTATUS = TWI_CLKHOLD_bm;
+
+    uint8_t bytes_read = 0;
+
+    while (bytes_read < length) {
+        if (twiWait()) {
+            goto endTransmission;
+        }
+
+        buffer[bytes_read] = TWI0.MDATA;
+
+        ++bytes_read;
+
+        if (bytes_read < length) {
+            // If not done, then ACK and read the next byte
+            TWI0.MCTRLB = TWI_ACKACT_ACK_gc | TWI_MCMD_RECVTRANS_gc;
+        }
+    }
+
+    // Stop the bus (terminate transmission)
+endTransmission:
+    TWI0.MCTRLB = TWI_ACKACT_NACK_gc | TWI_MCMD_STOP_gc;
+
+    return bytes_read;
 }

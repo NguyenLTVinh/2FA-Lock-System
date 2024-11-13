@@ -19,8 +19,11 @@ extern "C" {
      * @param address the address of the destination microcontroller
      * @param data the data to send
      * @param length the length of the data to send
+     * @return the number of bytes written
      */
-    void twiWriteBytes(uint8_t address, const uint8_t * data, uint8_t length);
+    uint8_t twiWriteBytes(uint8_t address, const uint8_t * data, uint8_t length);
+    
+    uint8_t twiReadBytes(const uint8_t address, uint8_t * const buffer, const uint8_t length);
 
 #ifdef	__cplusplus
 }

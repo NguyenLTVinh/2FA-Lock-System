@@ -10,6 +10,7 @@
       <itemPath>globals.h</itemPath>
       <itemPath>two_wire_interface.h</itemPath>
       <itemPath>button.h</itemPath>
+      <itemPath>cryptography.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -28,6 +29,7 @@
       <itemPath>usart.c</itemPath>
       <itemPath>button.c</itemPath>
       <itemPath>two_wire_interface.c</itemPath>
+      <itemPath>cryptography.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>
