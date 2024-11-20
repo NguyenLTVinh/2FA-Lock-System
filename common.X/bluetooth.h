@@ -5,7 +5,9 @@
 extern "C" {
 #endif
 
-    void initializeBluetooth(const char *const name);
+    void bluetoothInitController();
+
+    void bluetoothInitReader();
 
     void sendBluetoothCommand(const char *const command);
 
