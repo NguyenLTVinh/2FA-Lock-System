@@ -1,6 +1,7 @@
 #include "../common.X/main.h"
 #include "../common.X/button.h"
 #include "../common.X/two_wire_interface.h"
+#include "rfid-reader.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

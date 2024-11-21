@@ -72,17 +72,53 @@ endTransmission:
     return bytes_written;
 }
 
+uint8_t twiWriteBytesToDeviceAddress(const uint8_t address, const uint8_t register_address, const uint8_t * const data, const uint8_t length) {
+    // Address the destination microcontroller in write mode
+    TWI0.MADDR = (address << 1) | TWI_WRITE;
+
+    uint8_t bytes_written = 0;
+
+    if (twiWait()) {
+        goto endTransmission;
+    }
+
+    TWI0.MDATA = register_address;
+
+    if (twiWait()) {
+        goto endTransmission;
+    }
+
+    ++bytes_written;
+
+    // Write the given data
+    for (uint8_t i = 0; i < length; ++i) {
+        TWI0.MDATA = data[i];
+
+        if (twiWait()) {
+            goto endTransmission;
+        }
+
+        ++bytes_written;
+    }
+
+    // Stop the bus (terminate transmission)
+endTransmission:
+    TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+
+    return bytes_written;
+}
+
 uint8_t twiReadBytes(const uint8_t address, uint8_t * const buffer, const uint8_t length) {
     // Address the destination microcontroller in write mode
     TWI0.MADDR = (address << 1) | TWI_READ;
+
+    uint8_t bytes_read = 0;
 
     if (twiWait()) {
         goto endTransmission;
     }
 
     TWI0.MSTATUS = TWI_CLKHOLD_bm;
-
-    uint8_t bytes_read = 0;
 
     while (bytes_read < length) {
         if (twiWait()) {
