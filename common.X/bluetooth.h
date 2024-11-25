@@ -5,15 +5,16 @@
 extern "C" {
 #endif
 
-    void bluetoothInitController();
+    void bluetoothInit();
 
-    void bluetoothInitReader();
+    void sendBluetoothCommand(const char *const command, const char *const readUntil);
 
-    void sendBluetoothCommand(const char *const command);
+    void bluetoothWriteBytes(const char *const data, int bytes);
+
+    void bluetoothReadBytes(char *const destination, int bytes);
 
 #ifdef	__cplusplus
 }
 #endif
 
 #endif	/* BLUETOOTH_H */
-
