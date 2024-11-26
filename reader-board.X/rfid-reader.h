@@ -13,7 +13,9 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <inttypes.h>
+#include <avr/io.h>
+#include "../common.X/globals.h"
+#include <util/delay.h>
 
     enum PCD_Register {
         // Page 0: Command and status
@@ -132,7 +134,15 @@ extern "C" {
         PICC_CMD_UL_WRITE = 0xA2 // Writes one 4 byte page to the PICC.
     };
 
-    bool readRfidCard(uint8_t * const card_contents);
+    typedef struct {
+        uint8_t size; // Number of bytes in the UID. 4, 7 or 10.
+        uint8_t uidByte[10];
+        uint8_t sak; // The SAK (Select acknowledge) byte returned from the PICC after successful selection.
+    } Uid;
+    
+    void initializeReader(PORT_t * const reset_pin_port, uint8_t reset_pin_bitmask);
+
+    bool readRfidCard(Uid * const card);
 
 
 #ifdef	__cplusplus

@@ -26,6 +26,8 @@ extern "C" {
     uint8_t twiWriteBytesToDeviceAddress(uint8_t address, uint8_t register_address, const uint8_t * data, uint8_t length);
     
     uint8_t twiReadBytes(const uint8_t address, uint8_t * const buffer, const uint8_t length);
+    
+    uint8_t twiReadBytesFromDeviceAddress(uint8_t address, uint8_t register_address, uint8_t * const data, uint8_t length);
 
 #ifdef	__cplusplus
 }

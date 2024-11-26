@@ -20,14 +20,21 @@ ISR(PORTA_PORT_vect) {
 }
 
 int main(void) {
-    initializeCommonBoardFunctions("DoorLockReader");
+//    initializeCommonBoardFunctions("DoorLockReader");
     initializeTwi();
+    initializeReader(&PORTC, PIN0_bm);
+        
+    Uid card;
 
     while (1) {
-        if (isButtonPressed(&TEST_BUTTON)) {
-            // Do something
+        if (readRfidCard(&card)) {
+            break;
         }
     }
 
+    if (isButtonPressed(&TEST_BUTTON)) {
+        return 1;
+    }
+    
     return 0;
 }

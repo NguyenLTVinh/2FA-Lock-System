@@ -88,8 +88,6 @@ uint8_t twiWriteBytesToDeviceAddress(const uint8_t address, const uint8_t regist
         goto endTransmission;
     }
 
-    ++bytes_written;
-
     // Write the given data
     for (uint8_t i = 0; i < length; ++i) {
         TWI0.MDATA = data[i];
@@ -126,6 +124,51 @@ uint8_t twiReadBytes(const uint8_t address, uint8_t * const buffer, const uint8_
         }
 
         buffer[bytes_read] = TWI0.MDATA;
+
+        ++bytes_read;
+
+        if (bytes_read < length) {
+            // If not done, then ACK and read the next byte
+            TWI0.MCTRLB = TWI_ACKACT_ACK_gc | TWI_MCMD_RECVTRANS_gc;
+        }
+    }
+
+    // Stop the bus (terminate transmission)
+endTransmission:
+    TWI0.MCTRLB = TWI_ACKACT_NACK_gc | TWI_MCMD_STOP_gc;
+
+    return bytes_read;
+}
+
+uint8_t twiReadBytesFromDeviceAddress(const uint8_t address, const uint8_t register_address, uint8_t * const data, const uint8_t length) {
+    // Address the destination microcontroller in write mode
+    TWI0.MADDR = (address << 1) | TWI_WRITE;
+
+    uint8_t bytes_read = 0;
+
+    if (twiWait()) {
+        goto endTransmission;
+    }
+
+    TWI0.MDATA = register_address;
+
+    if (twiWait()) {
+        goto endTransmission;
+    }
+
+    // Switch to read mode so we can read starting at the selected address
+    TWI0.MADDR |= TWI_READ;
+    TWI0.MCTRLB = TWI_MCMD_REPSTART_gc;
+
+    // Release the clock hold
+    TWI0.MSTATUS = TWI_CLKHOLD_bm;
+
+    while (bytes_read < length) {
+        if (twiWait()) {
+            goto endTransmission;
+        }
+
+        data[bytes_read] = TWI0.MDATA;
 
         ++bytes_read;
 
