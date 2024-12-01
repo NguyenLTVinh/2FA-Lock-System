@@ -2,6 +2,7 @@
 #include "../common.X/usart.h"
 
 #include "../common.X/globals.h"
+#include "bluetooth_reader.h"
 
 #include <avr/io.h>
 #include <util/delay.h>

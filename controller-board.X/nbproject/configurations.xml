@@ -18,6 +18,9 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>controller_main.c</itemPath>
+      <itemPath>bluetooth_controller.c</itemPath>
+      <itemPath>bluetooth_controller.h</itemPath>
+      <itemPath>doorlock_controller.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <projectmakefile>Makefile</projectmakefile>

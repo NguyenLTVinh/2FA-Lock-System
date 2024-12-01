@@ -3,6 +3,8 @@
 
 #include "../common.X/globals.h"
 
+#include "bluetooth_controller.h"
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <string.h>
