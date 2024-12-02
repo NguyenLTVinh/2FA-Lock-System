@@ -139,11 +139,10 @@ extern "C" {
         uint8_t uidByte[10];
         uint8_t sak; // The SAK (Select acknowledge) byte returned from the PICC after successful selection.
     } Uid;
-    
-    void initializeReader(PORT_t * const reset_pin_port, uint8_t reset_pin_bitmask);
+
+    void initializeReader(void);
 
     bool readRfidCard(Uid * const card);
-
 
 #ifdef	__cplusplus
 }

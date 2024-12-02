@@ -9,6 +9,8 @@ disassembly/
 *.X/nbproject/*.bash
 *.X/nbproject/Makefile-genesis.properties
 *.X/nbproject/queuelogs
+*.X/defmplabxtrace.log.*
+*.X/defmplabxtrace.log
 
 # MCC specific
 *mc3.bak*

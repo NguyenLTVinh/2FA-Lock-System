@@ -1,10 +1,12 @@
 #include "../common.X/main.h"
 #include "../common.X/button.h"
-#include "../common.X/two_wire_interface.h"
 #include "rfid-reader.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
+#include "../common.X/globals.h"
+#include <util/delay.h>
 
 Button TEST_BUTTON = CREATE_BUTTON(PORTA, PIN1_bp);
 
@@ -20,21 +22,26 @@ ISR(PORTA_PORT_vect) {
 }
 
 int main(void) {
-//    initializeCommonBoardFunctions("DoorLockReader");
-    initializeTwi();
-    initializeReader(&PORTC, PIN0_bm);
-        
+    //    initializeCommonBoardFunctions("DoorLockReader");
+    initializeReader();
+
+    PORTD.DIRSET = PIN1_bm;
+    
     Uid card;
 
     while (1) {
         if (readRfidCard(&card)) {
             break;
         }
+        
+        PORTD.OUTTGL = PIN1_bm;
+        
+        _delay_ms(250);
     }
 
     if (isButtonPressed(&TEST_BUTTON)) {
         return 1;
     }
-    
+
     return 0;
 }

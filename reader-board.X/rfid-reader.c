@@ -1,11 +1,9 @@
 #include "rfid-reader.h"
 #include <stddef.h>
 
-#include "../common.X/two_wire_interface.h"
+#include "mfrc522.h"
 
-#define RFID_READER_BUFFER_SIZE 2
-
-const uint8_t RFID_READER_I2C_ADDRESS = 0x28;
+#define RFID_READER_BUFFER_SIZE 32
 
 typedef enum PiccResult {
     PICC_RESULT_OK,
@@ -19,59 +17,48 @@ typedef enum PiccResult {
     PICC_RESULT_INTERNAL_ERROR,
 } PiccResult;
 
-/**
- * Writes a byte to the specified register in the MFRC522 chip.
- * The interface is described in the datasheet section 8.1.2.
- */
-void writeReaderRegisterValue(
-        const uint8_t register_address, ///< The register to write to. One of the PCD_Register enums.
-        const uint8_t value ///< The value to write.
-        ) {
-    uint8_t buffer[2] = {register_address, value};
-    twiWriteBytes(RFID_READER_I2C_ADDRESS, buffer, 2);
-}
+// Firmware data for self-test
+// Reference values based on firmware version
+// Hint: if needed, you can remove unused self-test data to save flash memory
+//
+// Version 0.0 (0x90)
+// Philips Semiconductors; Preliminary Specification Revision 2.0 - 01 August 2005; 16.1 Sefttest
+#define MFRC522_SELF_TEST_REFERENCE_LENGTH 64
 
-/**
- * Writes a number of bytes to the specified register in the MFRC522 chip.
- * The interface is described in the datasheet section 8.1.2.
- */
-void writeReaderRegisterData(
-        const uint8_t register_address, ///< The register to write to. One of the PCD_Register enums.
-        const uint8_t * const data, ///< The data to write. Byte array.
-        const uint8_t length ///< The number of bytes to write to the register
-        ) {
-    twiWriteBytesToDeviceAddress(RFID_READER_I2C_ADDRESS, register_address, data, length);
-}
-
-uint8_t readReaderRegisterValue(const uint8_t register_address) {
-    uint8_t value;
-    twiReadBytesFromDeviceAddress(RFID_READER_I2C_ADDRESS, register_address, &value, 1);
-    return value;
-}
-
-/**
- * Reads a number of bytes from the specified register in the MFRC522 chip.
- * The interface is described in the datasheet section 8.1.2.
- */
-void readReaderRegisterData(
-        const uint8_t register_address, ///< The register to read from. One of the PCD_Register enums.
-        uint8_t * const data, ///< Byte array to store the values in.
-        const uint8_t count, ///< The number of bytes to read
-        const uint8_t receive_alignment ///< Only bit positions rxAlign..7 in values[0] are updated.
-        ) {
-    if (count == 0) {
-        return;
-    }
-    twiReadBytesFromDeviceAddress(RFID_READER_I2C_ADDRESS, register_address, data, count);
-    if (receive_alignment) { // Only update bit positions rxAlign..7 in values[0]
-        // Create bit mask for bit positions rxAlign..7
-        uint8_t mask = 0;
-        for (uint8_t i = receive_alignment; i <= 7; i++) {
-            mask |= (1 << i);
-        }
-        data[0] &= mask;
-    }
-}
+const uint8_t MFRC522_firmware_referenceV0_0[MFRC522_SELF_TEST_REFERENCE_LENGTH] = {
+    0x00, 0x87, 0x98, 0x0f, 0x49, 0xFF, 0x07, 0x19,
+    0xBF, 0x22, 0x30, 0x49, 0x59, 0x63, 0xAD, 0xCA,
+    0x7F, 0xE3, 0x4E, 0x03, 0x5C, 0x4E, 0x49, 0x50,
+    0x47, 0x9A, 0x37, 0x61, 0xE7, 0xE2, 0xC6, 0x2E,
+    0x75, 0x5A, 0xED, 0x04, 0x3D, 0x02, 0x4B, 0x78,
+    0x32, 0xFF, 0x58, 0x3B, 0x7C, 0xE9, 0x00, 0x94,
+    0xB4, 0x4A, 0x59, 0x5B, 0xFD, 0xC9, 0x29, 0xDF,
+    0x35, 0x96, 0x98, 0x9E, 0x4F, 0x30, 0x32, 0x8D
+};
+// Version 1.0 (0x91)
+// NXP Semiconductors; Rev. 3.8 - 17 September 2014; 16.1.1 Self test
+const uint8_t MFRC522_firmware_referenceV1_0[MFRC522_SELF_TEST_REFERENCE_LENGTH] = {
+    0x00, 0xC6, 0x37, 0xD5, 0x32, 0xB7, 0x57, 0x5C,
+    0xC2, 0xD8, 0x7C, 0x4D, 0xD9, 0x70, 0xC7, 0x73,
+    0x10, 0xE6, 0xD2, 0xAA, 0x5E, 0xA1, 0x3E, 0x5A,
+    0x14, 0xAF, 0x30, 0x61, 0xC9, 0x70, 0xDB, 0x2E,
+    0x64, 0x22, 0x72, 0xB5, 0xBD, 0x65, 0xF4, 0xEC,
+    0x22, 0xBC, 0xD3, 0x72, 0x35, 0xCD, 0xAA, 0x41,
+    0x1F, 0xA7, 0xF3, 0x53, 0x14, 0xDE, 0x7E, 0x02,
+    0xD9, 0x0F, 0xB5, 0x5E, 0x25, 0x1D, 0x29, 0x79
+};
+// Version 2.0 (0x92)
+// NXP Semiconductors; Rev. 3.8 - 17 September 2014; 16.1.1 Self test
+const uint8_t MFRC522_firmware_referenceV2_0[MFRC522_SELF_TEST_REFERENCE_LENGTH] = {
+    0x00, 0xEB, 0x66, 0xBA, 0x57, 0xBF, 0x23, 0x95,
+    0xD0, 0xE3, 0x0D, 0x3D, 0x27, 0x89, 0x5C, 0xDE,
+    0x9D, 0x3B, 0xA7, 0x00, 0x21, 0x5B, 0x89, 0x82,
+    0x51, 0x3A, 0xEB, 0x02, 0x0C, 0xA5, 0x00, 0x49,
+    0x7C, 0x84, 0x4D, 0xB3, 0xCC, 0xD2, 0x1B, 0x81,
+    0x5D, 0x48, 0x76, 0xD5, 0x71, 0x61, 0x21, 0xA9,
+    0x86, 0x96, 0x83, 0x38, 0xCF, 0x9D, 0x5B, 0x6D,
+    0xDC, 0x15, 0xBA, 0x3E, 0x7D, 0x95, 0x3B, 0x2F
+};
 
 /**
  * Sets the bits given in mask in the register at register_address.
@@ -80,8 +67,8 @@ void setReaderRegisterBitmask(
         uint8_t register_address, ///< The register to update. One of the PCD_Register enums.
         uint8_t bitmask ///< The bits to set.
         ) {
-    const uint8_t register_value = readReaderRegisterValue(register_address);
-    writeReaderRegisterValue(register_address, register_value | bitmask);
+    const uint8_t register_value = mfrc522ReadByteAtAddress(register_address);
+    mfrc522WriteByteAtAddress(register_address, register_value | bitmask);
 }
 
 /**
@@ -91,8 +78,8 @@ void clearReaderRegisterBitmask(
         const uint8_t reg, ///< The register to update. One of the PCD_Register enums.
         const uint8_t mask ///< The bits to clear.
         ) {
-    const uint8_t tmp = readReaderRegisterValue(reg);
-    writeReaderRegisterValue(reg, tmp & (~mask)); // clear bit mask
+    const uint8_t tmp = mfrc522ReadByteAtAddress(reg);
+    mfrc522WriteByteAtAddress(reg, tmp & (~mask)); // clear bit mask
 }
 
 /**
@@ -105,17 +92,17 @@ PiccResult computeReaderCrc(
         uint8_t length, ///< In: The number of bytes to transfer.
         uint8_t *result ///< Out: Pointer to result buffer. Result is written to result[0..1], low byte first.
         ) {
-    writeReaderRegisterValue(CommandReg, PCD_Idle); // Stop any active command.
-    writeReaderRegisterValue(DivIrqReg, 0x04); // Clear the CRCIRq interrupt request bit
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Idle); // Stop any active command.
+    mfrc522WriteByteAtAddress(DivIrqReg, 0x04); // Clear the CRCIRq interrupt request bit
     setReaderRegisterBitmask(FIFOLevelReg, 0x80); // FlushBuffer = 1, FIFO initialization
-    writeReaderRegisterData(FIFODataReg, data, length); // Write data to the FIFO
-    writeReaderRegisterValue(CommandReg, PCD_CalcCRC); // Start the calculation
+    mfrc522WriteDataAtAddress(FIFODataReg, data, length); // Write data to the FIFO
+    mfrc522WriteByteAtAddress(CommandReg, PCD_CalcCRC); // Start the calculation
 
     // Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73�s.
     uint16_t i = 5000;
     uint8_t n;
     while (1) {
-        n = readReaderRegisterValue(DivIrqReg); // DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
+        n = mfrc522ReadByteAtAddress(DivIrqReg); // DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
         if (n & 0x04) { // CRCIRq bit set - calculation done
             break;
         }
@@ -123,27 +110,96 @@ PiccResult computeReaderCrc(
             return PICC_RESULT_TIMEOUT;
         }
     }
-    writeReaderRegisterValue(CommandReg, PCD_Idle); // Stop calculating CRC for new content in the FIFO.
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Idle); // Stop calculating CRC for new content in the FIFO.
 
     // Transfer the result from the registers to the result buffer
-    result[0] = readReaderRegisterValue(CRCResultRegL);
-    result[1] = readReaderRegisterValue(CRCResultRegH);
+    result[0] = mfrc522ReadByteAtAddress(CRCResultRegL);
+    result[1] = mfrc522ReadByteAtAddress(CRCResultRegH);
     return PICC_RESULT_OK;
+}
+
+/**
+ * Performs a self-test of the MFRC522
+ * See 16.1.1 in http://www.nxp.com/documents/data_sheet/MFRC522.pdf
+ * 
+ * @return Whether or not the test passed. Or false if no firmware reference is available.
+ */
+bool performSelfTest() {
+    // 2. Clear the internal buffer by writing 25 bytes of 00h
+    uint8_t ZEROES[25] = {0x00};
+    setReaderRegisterBitmask(FIFOLevelReg, 0x80); // flush the FIFO buffer
+    mfrc522WriteDataAtAddress(FIFODataReg, ZEROES, 25); // write 25 bytes of 00h to FIFO
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Mem); // transfer to internal buffer
+
+    // 3. Enable self-test
+    mfrc522WriteByteAtAddress(AutoTestReg, 0x09);
+
+    // 4. Write 00h to FIFO buffer
+    mfrc522WriteByteAtAddress(FIFODataReg, 0x00);
+
+    // 5. Start self-test by issuing the CalcCRC command
+    mfrc522WriteByteAtAddress(CommandReg, PCD_CalcCRC);
+
+    // 6. Wait for self-test to complete
+    for (uint16_t i = 0; i < 0xFF; i++) {
+        const uint8_t n = mfrc522ReadByteAtAddress(DivIrqReg); // DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
+        if (n & 0x04) { // CRCIRq bit set - calculation done
+            break;
+        }
+    }
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Idle); // Stop calculating CRC for new content in the FIFO.
+
+    // 7. Read out resulting 64 bytes from the FIFO buffer.
+    uint8_t result[MFRC522_SELF_TEST_REFERENCE_LENGTH];
+    mfrc522ReadDataAtAddress(FIFODataReg, result, MFRC522_SELF_TEST_REFERENCE_LENGTH, 0);
+
+    // Auto self-test done
+    // Reset AutoTestReg register to be 0 again. Required for normal operation.
+    mfrc522WriteByteAtAddress(AutoTestReg, 0x00);
+
+    // Determine firmware version (see section 9.3.4.8 in spec)
+    const uint8_t version = mfrc522ReadByteAtAddress(VersionReg);
+
+    // Pick the appropriate reference values
+    const uint8_t *reference;
+    switch (version) {
+        case 0x90: // Version 0.0
+            reference = MFRC522_firmware_referenceV0_0;
+            break;
+        case 0x91: // Version 1.0
+            reference = MFRC522_firmware_referenceV1_0;
+            break;
+        case 0x92: // Version 2.0
+            reference = MFRC522_firmware_referenceV2_0;
+            break;
+        default: // Unknown version
+            return false; // abort test
+    }
+
+    // Verify that the results match up to our expectations
+    for (uint8_t i = 0; i < 64; i++) {
+        if (result[i] != reference[i]) {
+            return false;
+        }
+    }
+
+    // Test passed; all is good.
+    return true;
 }
 
 /**
  * Performs a soft reset on the MFRC522 chip and waits for it to be ready again.
  */
 void resetReader() {
-	writeReaderRegisterValue(CommandReg, PCD_SoftReset);	// Issue the SoftReset command.
-	// The datasheet does not mention how long the SoftRest command takes to complete.
-	// But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg) 
-	// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
-	_delay_ms(50);
-	// Wait for the PowerDown bit in CommandReg to be cleared
-	while (readReaderRegisterValue(CommandReg) & (1 << 4)) {
-		// PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
-	}
+    mfrc522WriteByteAtAddress(CommandReg, PCD_SoftReset); // Issue the SoftReset command.
+    // The datasheet does not mention how long the SoftRest command takes to complete.
+    // But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg) 
+    // Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
+    _delay_ms(50);
+    // Wait for the PowerDown bit in CommandReg to be cleared
+    while (mfrc522ReadByteAtAddress(CommandReg) & (1 << 4)) {
+        // PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
+    }
 }
 
 /**
@@ -151,41 +207,42 @@ void resetReader() {
  * After a reset these pins are disabled.
  */
 void enableReaderAntenna() {
-	const uint8_t value = readReaderRegisterValue(TxControlReg);
-	if ((value & 0x03) != 0x03) {
-		writeReaderRegisterValue(TxControlReg, value | 0x03);
-	}
+    const uint8_t value = mfrc522ReadByteAtAddress(TxControlReg);
+    if ((value & 0x03) != 0x03) {
+        mfrc522WriteByteAtAddress(TxControlReg, value | 0x03);
+    }
 }
 
 /**
  * Initializes the MFRC522 chip.
  */
-void initializeReader(PORT_t * const reset_pin_port, uint8_t reset_pin_bitmask) {
-	reset_pin_port->DIRCLR = reset_pin_bitmask;
-    const bool is_in_power_down_mode = (reset_pin_port->IN & reset_pin_bitmask) == 0;
-	reset_pin_port->DIRSET = reset_pin_bitmask;
-    
-	if (is_in_power_down_mode) {	// The MFRC522 chip is in power down mode.
-        // Exit power down mode. This triggers a hard reset.
-        reset_pin_port->OUTSET = reset_pin_bitmask;
-		// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
-		_delay_ms(50);
-	} else {
-        // Perform a soft reset
-		resetReader();
-	}
-	
-	// When communicating with a PICC we need a timeout if something goes wrong.
-	// f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
-	// TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
-	writeReaderRegisterValue(TModeReg, 0x80);			// TAuto=1; timer starts automatically at the end of the transmission in all communication modes at all speeds
-	writeReaderRegisterValue(TPrescalerReg, 0xA9);		// TPreScaler = TModeReg[3..0]:TPrescalerReg, ie 0x0A9 = 169 => f_timer=40kHz, ie a timer period of 25�s.
-	writeReaderRegisterValue(TReloadRegH, 0x03);		// Reload timer with 0x3E8 = 1000, ie 25ms before timeout.
-	writeReaderRegisterValue(TReloadRegL, 0xE8);
-	
-	writeReaderRegisterValue(TxASKReg, 0x40);		// Default 0x00. Force a 100 % ASK modulation independent of the ModGsPReg register setting
-	writeReaderRegisterValue(ModeReg, 0x3D);		// Default 0x3F. Set the preset value for the CRC coprocessor for the CalcCRC command to 0x6363 (ISO 14443-3 part 6.2.4)
-	enableReaderAntenna();						// Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
+void initializeReader(void) {
+    initializeMfrc522();
+    //	reset_pin_port->DIRCLR = reset_pin_bitmask;
+    //    const bool is_in_power_down_mode = (reset_pin_port->IN & reset_pin_bitmask) == 0;
+    //	reset_pin_port->DIRSET = reset_pin_bitmask;
+
+    //	if (is_in_power_down_mode) {	// The MFRC522 chip is in power down mode.
+    //        // Exit power down mode. This triggers a hard reset.
+    //        reset_pin_port->OUTSET = reset_pin_bitmask;
+    //		// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
+    //		_delay_ms(50);
+    //	} else {
+    // Perform a soft reset
+    resetReader();
+    //	}
+
+    // When communicating with a PICC we need a timeout if something goes wrong.
+    // f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
+    // TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
+    mfrc522WriteByteAtAddress(TModeReg, 0x80); // TAuto=1; timer starts automatically at the end of the transmission in all communication modes at all speeds
+    mfrc522WriteByteAtAddress(TPrescalerReg, 0xA9); // TPreScaler = TModeReg[3..0]:TPrescalerReg, ie 0x0A9 = 169 => f_timer=40kHz, ie a timer period of 25�s.
+    mfrc522WriteByteAtAddress(TReloadRegH, 0x03); // Reload timer with 0x3E8 = 1000, ie 25ms before timeout.
+    mfrc522WriteByteAtAddress(TReloadRegL, 0xE8);
+
+    mfrc522WriteByteAtAddress(TxASKReg, 0x40); // Default 0x00. Force a 100 % ASK modulation independent of the ModGsPReg register setting
+    mfrc522WriteByteAtAddress(ModeReg, 0x3D); // Default 0x3F. Set the preset value for the CRC coprocessor for the CalcCRC command to 0x6363 (ISO 14443-3 part 6.2.4)
+    enableReaderAntenna(); // Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
 }
 
 PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to execute. One of the PCD_Command enums.
@@ -205,12 +262,12 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
     uint8_t txLastBits = validBits ? *validBits : 0;
     uint8_t bitFraming = (rxAlign << 4) + txLastBits; // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
-    writeReaderRegisterValue(CommandReg, PCD_Idle); // Stop any active command.
-    writeReaderRegisterValue(ComIrqReg, 0x7F); // Clear all seven interrupt request bits
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Idle); // Stop any active command.
+    mfrc522WriteByteAtAddress(ComIrqReg, 0x7F); // Clear all seven interrupt request bits
     setReaderRegisterBitmask(FIFOLevelReg, 0x80); // FlushBuffer = 1, FIFO initialization
-    writeReaderRegisterData(FIFODataReg, sendData, sendLen); // Write sendData to the FIFO
-    writeReaderRegisterValue(BitFramingReg, bitFraming); // Bit adjustments
-    writeReaderRegisterValue(CommandReg, command); // Execute the command
+    mfrc522WriteDataAtAddress(FIFODataReg, sendData, sendLen); // Write sendData to the FIFO
+    mfrc522WriteByteAtAddress(BitFramingReg, bitFraming); // Bit adjustments
+    mfrc522WriteByteAtAddress(CommandReg, command); // Execute the command
     if (command == PCD_Transceive) {
         setReaderRegisterBitmask(BitFramingReg, 0x80); // StartSend=1, transmission of data starts
     }
@@ -220,7 +277,7 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
     // Each iteration of the do-while-loop takes 17.86�s.
     i = 2000;
     while (1) {
-        n = readReaderRegisterValue(ComIrqReg); // ComIrqReg[7..0] bits are: Set1 TxIRq RxIRq IdleIRq HiAlertIRq LoAlertIRq ErrIRq TimerIRq
+        n = mfrc522ReadByteAtAddress(ComIrqReg); // ComIrqReg[7..0] bits are: Set1 TxIRq RxIRq IdleIRq HiAlertIRq LoAlertIRq ErrIRq TimerIRq
         if (n & waitIRq) { // One of the interrupts that signal success has been set.
             break;
         }
@@ -233,7 +290,7 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
     }
 
     // Stop now if any errors except collisions were detected.
-    const uint8_t errorRegValue = readReaderRegisterValue(ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
+    const uint8_t errorRegValue = mfrc522ReadByteAtAddress(ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
     if (errorRegValue & 0x13) { // BufferOvfl ParityErr ProtocolErr
         return PICC_RESULT_ERROR;
     }
@@ -245,13 +302,13 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
 
     // If the caller wants data back, get it from the MFRC522.
     if (backData && backLen) {
-        n = readReaderRegisterValue(FIFOLevelReg); // Number of bytes in the FIFO
+        n = mfrc522ReadByteAtAddress(FIFOLevelReg); // Number of bytes in the FIFO
         if (n > *backLen) {
             return PICC_RESULT_BUFFER_TOO_SHORT;
         }
         *backLen = n; // Number of bytes returned
-        readReaderRegisterData(FIFODataReg, backData, n, rxAlign); // Get received data from FIFO
-        const uint8_t _validBits = readReaderRegisterValue(ControlReg) & 0x07; // RxLastBits[2:0] indicates the number of valid bits in the last received byte. If this value is 000b, the whole byte is valid.
+        mfrc522ReadDataAtAddress(FIFODataReg, backData, n, rxAlign); // Get received data from FIFO
+        const uint8_t _validBits = mfrc522ReadByteAtAddress(ControlReg) & 0x07; // RxLastBits[2:0] indicates the number of valid bits in the last received byte. If this value is 000b, the whole byte is valid.
         if (validBits) {
             *validBits = _validBits;
         }
@@ -483,12 +540,12 @@ PiccResult piccSelect(
 
             // Set bit adjustments
             rxAlign = txLastBits; // Having a separate variable is overkill. But it makes the next line easier to read.
-            writeReaderRegisterValue(BitFramingReg, (rxAlign << 4) + txLastBits); // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
+            mfrc522WriteByteAtAddress(BitFramingReg, (rxAlign << 4) + txLastBits); // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
             // Transmit the buffer and receive the response.
             result = PCD_TransceiveDataWithAlignment(buffer, bufferUsed, responseBuffer, &responseLength, &txLastBits, rxAlign);
             if (result == PICC_RESULT_COLLISION) { // More than one PICC in the field => collision.
-                const uint8_t valueOfCollReg = readReaderRegisterValue(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
+                const uint8_t valueOfCollReg = mfrc522ReadByteAtAddress(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
                 if (valueOfCollReg & 0x20) { // CollPosNotValid
                     return PICC_RESULT_COLLISION; // Without a valid collision position we cannot continue
                 }
