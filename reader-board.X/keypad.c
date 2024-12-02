@@ -35,6 +35,11 @@ void keyPadInit() {
 
 // Get the currently pressed key
 enum KeypadKey_t getKey(){
+    // Deactivate all columns before starting (set all low)
+    PORTC.OUT &= ~PIN0_bm; // Keypad_C0 low
+    PORTA.OUT &= ~PIN3_bm; // Keypad_C1 low
+    PORTA.OUT &= ~PIN2_bm; // Keypad_C2 low
+    
     for (uint8_t col = 0; col < 3; col++) {
         // Activate the current column
         switch (col) {
@@ -43,10 +48,10 @@ enum KeypadKey_t getKey(){
             case 2: PORTA.OUT |= PIN2_bm; break; // Set Keypad_C2 high
         }
         // Check each row for a pressed key
-        if (!(PORTD.IN & PIN5_bm)) { return kpMap[0][col]; } // Keypad_R0
-        if (!(PORTD.IN & PIN1_bm)) { return kpMap[1][col]; } // Keypad_R1
-        if (!(PORTD.IN & PIN6_bm)) { return kpMap[2][col]; } // Keypad_R2
-        if (!(PORTC.IN & PIN1_bm)) { return kpMap[3][col]; } // Keypad_R3
+        if (!(PORTD.IN & PIN5_bm)) { return kpMap[0][col]; break;} // Keypad_R0
+        if (!(PORTD.IN & PIN1_bm)) { return kpMap[1][col]; break;} // Keypad_R1
+        if (!(PORTD.IN & PIN6_bm)) { return kpMap[2][col]; break;} // Keypad_R2
+        if (!(PORTC.IN & PIN1_bm)) { return kpMap[3][col]; break;} // Keypad_R3
         // Deactivate the current column
         switch (col) {
             case 0: PORTC.OUT &= ~PIN0_bm; break; // Set Keypad_C0 low
