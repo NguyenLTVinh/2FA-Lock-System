@@ -144,6 +144,10 @@ extern "C" {
 
     bool readRfidCard(Uid * const card);
 
+    uint8_t isRFIDCardPresent(void);
+
+    uint8_t readRFIDCardSerial(char *uidBuffer) ;
+
 #ifdef	__cplusplus
 }
 #endif

@@ -21,14 +21,7 @@ void initializeSpi(void) {
     SPI_PORT.DIRSET = SPI_MOSI | SPI_SCK | SPI_SS;
     // Set input ports as input
     SPI_PORT.DIRCLR = SPI_MISO;
-
-    SPI0.CTRLA = SPI_DORD_bm |
-            SPI_MASTER_bm |
-            SPI_PRESC_DIV16_gc;
-
-//    SPI0.CTRLB = DISABLE_CLIENT_SELECT;
-
-    SPI0.CTRLA |= SPI_ENABLE_bm;
+    SPI0.CTRLA = SPI_ENABLE_bm | SPI_MASTER_bm | SPI_PRESC_DIV4_gc | SPI_CLK2X_bm;
 }
 
 uint8_t spiTransferByte(const uint8_t byte) {
@@ -40,6 +33,21 @@ uint8_t spiTransferByte(const uint8_t byte) {
 
     // Return received data
     return SPI0.DATA;
+}
+
+void spiWriteRegister(uint8_t reg, uint8_t value) {
+    enableDevice();
+    spiTransferByte((reg << 1) & 0x7E); // MSB = 0 for write
+    spiTransferByte(value);
+    disableDevice();
+}
+
+uint8_t spiReadRegister(uint8_t reg) {
+    enableDevice();
+    spiTransferByte(((reg << 1) & 0x7E) | 0x80); // MSB = 1 for read
+    uint8_t value = spiTransferByte(0x00);
+    disableDevice();
+    return value;
 }
 
 uint8_t spiReadByteAtAddress(const uint8_t address) {

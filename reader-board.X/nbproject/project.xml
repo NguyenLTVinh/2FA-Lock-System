@@ -10,7 +10,9 @@
             <make-dep-projects>
                 <make-dep-project>../common.X</make-dep-project>
             </make-dep-projects>
-            <sourceRootList/>
+            <sourceRootList>
+                <sourceRootElem>..</sourceRootElem>
+            </sourceRootList>
             <confList>
                 <confElem>
                     <name>default</name>
@@ -21,8 +23,5 @@
                 <project-formatting-style>false</project-formatting-style>
             </formatting>
         </data>
-        <spellchecker-wordlist xmlns="http://www.netbeans.org/ns/spellchecker-wordlist/1">
-            <word>datasheet</word>
-        </spellchecker-wordlist>
     </configuration>
 </project>
