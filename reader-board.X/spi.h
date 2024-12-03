@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-#include <avr/io.h>
+#include <stdint.h>
 #include <stdbool.h>
 
     void initializeSpi(void);
@@ -24,10 +24,6 @@ extern "C" {
     bool spiWriteByteAtAddress(const uint8_t address, const uint8_t byte);
     
     bool spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length);
-
-    void spiWriteRegister(uint8_t reg, uint8_t value);
-
-    uint8_t spiReadRegister(uint8_t reg);
 
 #ifdef	__cplusplus
 }

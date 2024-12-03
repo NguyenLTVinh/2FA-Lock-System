@@ -1,6 +1,7 @@
 #include "rfid-reader.h"
 #include "spi.h"
 #include <stddef.h>
+#include <stdio.h>
 
 #include "mfrc522.h"
 
@@ -178,7 +179,7 @@ bool performSelfTest() {
     }
 
     // Verify that the results match up to our expectations
-    for (uint8_t i = 0; i < 64; i++) {
+    for (uint8_t i = 0; i < MFRC522_SELF_TEST_REFERENCE_LENGTH; ++i) {
         if (result[i] != reference[i]) {
             return false;
         }
@@ -201,6 +202,11 @@ void resetReader() {
     while (mfrc522ReadByteAtAddress(CommandReg) & (1 << 4)) {
         // PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
     }
+    
+//    const bool value = performSelfTest();
+//    if (value) {
+//        _delay_ms(1);
+//    }
 }
 
 /**
@@ -624,40 +630,43 @@ bool readRfidCard(Uid * const card) {
 }
 
 uint8_t isRFIDCardPresent(void) {
-    spiWriteRegister(0x0D, 0x07); // Set BitFramingReg for REQA
-    spiReadRegister(0x01, 0x0C);
-    uint8_t irq = RFID_readRegister(0x04); // ComIrqReg
-    if (irq & 0x30) {return 1;}          // RxIRq or IdleIRq
+    mfrc522WriteByteAtAddress(BitFramingReg, 0x07); // Set BitFramingReg for REQA
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Transceive);
+    const uint8_t comIrqReg = mfrc522ReadByteAtAddress(ComIrqReg); // ComIrqReg
+    if (comIrqReg & 0x30) {  // RxIRq or IdleIRq
+        return 1;
+    }
     return 0;
 };
 
-uint8_t readRFIDCardSerial(char *uidBuffer) {
+uint8_t readRFIDCardSerial(uint8_t * const uidBuffer) {
     if (!isRFIDCardPresent()) {
         return 0;
     }
 
     uint8_t atqa[2];
-    spiWriteRegister(0x0D, 0x07); // BitFramingReg
-    spiWriteRegister(0x01, 0x0C); // Send REQA
+    mfrc522WriteByteAtAddress(BitFramingReg, 0x07); // BitFramingReg
+    mfrc522WriteByteAtAddress(CommandReg, PCD_Transceive); // Send REQA
 
     // Check response
     uint8_t atqaLen = 2;
-    for (uint8_t i = 0; i < atqaLen; i++) {
-        atqa[i] = spiReadRegister(0x09); // Read FIFO
+    for (uint8_t i = 0; i < atqaLen; ++i) {
+        atqa[i] = mfrc522ReadByteAtAddress(FIFODataReg); // Read FIFO
     }
 
     // Select the card and retrieve UID
-    spiWriteRegister(0x0D, 0x00); // Reset BitFramingReg
+    mfrc522WriteByteAtAddress(BitFramingReg, 0x00); // Reset BitFramingReg
     uint8_t uid[10];
     uint8_t size = 0;
-    for (uint8_t i = 0; i < 10; i++) {
-        uid[i] = spiReadRegister(0x09 + i); // Read FIFODataReg
-        if (uid[i] == 0) break;
-        size++;
+    for (; size < 10; ++size) {
+        uid[size] = mfrc522ReadByteAtAddress(FIFODataReg); // Read FIFODataReg
+        if (uid[size] == 0) {
+            break;
+        }
     }
 
     // Convert UID to string
-    for (uint8_t i = 0; i < size; i++) {
+    for (uint8_t i = 0; i < size; ++i) {
         sprintf(uidBuffer + (i * 2), "%02X", uid[i]);
     }
 

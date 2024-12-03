@@ -35,21 +35,6 @@ uint8_t spiTransferByte(const uint8_t byte) {
     return SPI0.DATA;
 }
 
-void spiWriteRegister(uint8_t reg, uint8_t value) {
-    enableDevice();
-    spiTransferByte((reg << 1) & 0x7E); // MSB = 0 for write
-    spiTransferByte(value);
-    disableDevice();
-}
-
-uint8_t spiReadRegister(uint8_t reg) {
-    enableDevice();
-    spiTransferByte(((reg << 1) & 0x7E) | 0x80); // MSB = 1 for read
-    uint8_t value = spiTransferByte(0x00);
-    disableDevice();
-    return value;
-}
-
 uint8_t spiReadByteAtAddress(const uint8_t address) {
     enableDevice();
     spiTransferByte(address);
@@ -64,15 +49,15 @@ uint8_t spiReadByteAtAddress(const uint8_t address) {
 bool spiReadDataAtAddress(const uint8_t address, uint8_t * const data, const uint8_t length) {
     enableDevice();
     spiTransferByte(address);
-    
+
     for (uint8_t i = 0; i < length - 1; ++i) {
-        data[i] = spiTransferByte(address + i);
+        data[i] = spiTransferByte(address);
     }
-    
+
     data[length - 1] = spiTransferByte(0);
-    
+
     disableDevice();
-    
+
     return true;
 }
 
@@ -81,19 +66,19 @@ bool spiWriteByteAtAddress(const uint8_t address, const uint8_t byte) {
     spiTransferByte(address);
     spiTransferByte(byte);
     disableDevice();
-    
+
     return true;
 }
 
 bool spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length) {
     enableDevice();
     spiTransferByte(address);
-    
+
     for (uint8_t i = 0; i < length - 1; ++i) {
         spiTransferByte(data[i]);
     }
-    
+
     disableDevice();
-    
+
     return true;
 }

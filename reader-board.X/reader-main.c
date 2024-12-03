@@ -27,11 +27,13 @@ int main(void) {
 
     PORTD.DIRSET = PIN1_bm;
     
-    Uid card;
+    uint8_t cardData[20];
 
     while (1) {
-        if (readRfidCard(&card)) {
-            break;
+        const bool value = readRFIDCardSerial(cardData);
+        if (value) {
+            // Temporary breakpoint spot
+            _delay_ms(1);
         }
         
         PORTD.OUTTGL = PIN1_bm;
