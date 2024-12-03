@@ -202,11 +202,11 @@ void resetReader() {
     while (mfrc522ReadByteAtAddress(CommandReg) & (1 << 4)) {
         // PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
     }
-    
-//    const bool value = performSelfTest();
-//    if (value) {
-//        _delay_ms(1);
-//    }
+
+    //    const bool value = performSelfTest();
+    //    if (value) {
+    //        _delay_ms(1);
+    //    }
 }
 
 /**
@@ -239,6 +239,12 @@ void initializeReader(void) {
     resetReader();
     //	}
 
+    // Reset baud rates
+    mfrc522WriteByteAtAddress(TxModeReg, 0x00);
+    mfrc522WriteByteAtAddress(RxModeReg, 0x00);
+    // Reset ModWidthReg
+    mfrc522WriteByteAtAddress(ModWidthReg, 0x26);
+
     // When communicating with a PICC we need a timeout if something goes wrong.
     // f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
     // TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
@@ -262,12 +268,9 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
         const uint8_t rxAlign, ///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
         const uint8_t checkCRC ///< In: True => The last two bytes of the response is assumed to be a CRC_A that must be validated.
         ) {
-    uint8_t n;
-    unsigned int i;
-
     // Prepare values for BitFramingReg
-    uint8_t txLastBits = validBits ? *validBits : 0;
-    uint8_t bitFraming = (rxAlign << 4) + txLastBits; // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
+    const uint8_t txLastBits = validBits ? *validBits : 0;
+    const uint8_t bitFraming = (rxAlign << 4) + txLastBits; // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
     mfrc522WriteByteAtAddress(CommandReg, PCD_Idle); // Stop any active command.
     mfrc522WriteByteAtAddress(ComIrqReg, 0x7F); // Clear all seven interrupt request bits
@@ -281,8 +284,9 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
 
     // Wait for the command to complete.
     // In PCD_Init() we set the TAuto flag in TModeReg. This means the timer automatically starts when the PCD stops transmitting.
-    // Each iteration of the do-while-loop takes 17.86�s.
-    i = 2000;
+    unsigned int i = 2000;
+    uint8_t n;
+
     while (1) {
         n = mfrc522ReadByteAtAddress(ComIrqReg); // ComIrqReg[7..0] bits are: Set1 TxIRq RxIRq IdleIRq HiAlertIRq LoAlertIRq ErrIRq TimerIRq
         if (n & waitIRq) { // One of the interrupts that signal success has been set.
@@ -291,7 +295,7 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
         if (n & 0x01) { // Timer interrupt - nothing received in 25ms
             return PICC_RESULT_TIMEOUT;
         }
-        if (--i == 0) { // The emergency break. If all other conditions fail we will eventually terminate on this one after 35.7ms. Communication with the MFRC522 might be down.
+        if (--i == 0) { // The emergency break. If all other conditions fail we will eventually terminate on this one. Communication with the MFRC522 might be down.
             return PICC_RESULT_TIMEOUT;
         }
     }
@@ -620,6 +624,12 @@ PiccResult piccSelect(
 bool readRfidCard(Uid * const card) {
     uint8_t bufferAtqa[RFID_READER_BUFFER_SIZE];
 
+    // Reset baud rates
+    mfrc522WriteByteAtAddress(TxModeReg, 0x00);
+    mfrc522WriteByteAtAddress(RxModeReg, 0x00);
+    // Reset ModWidthReg
+    mfrc522WriteByteAtAddress(ModWidthReg, 0x26);
+
     const PiccResult requestAResult = piccRequestA(bufferAtqa, RFID_READER_BUFFER_SIZE);
     if (requestAResult != PICC_RESULT_OK && requestAResult != PICC_RESULT_COLLISION) {
         return false;
@@ -633,7 +643,7 @@ uint8_t isRFIDCardPresent(void) {
     mfrc522WriteByteAtAddress(BitFramingReg, 0x07); // Set BitFramingReg for REQA
     mfrc522WriteByteAtAddress(CommandReg, PCD_Transceive);
     const uint8_t comIrqReg = mfrc522ReadByteAtAddress(ComIrqReg); // ComIrqReg
-    if (comIrqReg & 0x30) {  // RxIRq or IdleIRq
+    if (comIrqReg & 0x30) { // RxIRq or IdleIRq
         return 1;
     }
     return 0;
