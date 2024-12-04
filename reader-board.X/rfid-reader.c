@@ -184,7 +184,36 @@ bool performSelfTest() {
             return false;
         }
     }
+/**
+ * Performs a soft reset on the MFRC522 chip and waits for it to be ready again.
+ */
+void resetReader() {
+    mfrc522WriteByteAtAddress(CommandReg, PCD_SoftReset); // Issue the SoftReset command.
+    // The datasheet does not mention how long the SoftRest command takes to complete.
+    // But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg) 
+    // Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
+    _delay_ms(50);
+    // Wait for the PowerDown bit in CommandReg to be cleared
+    while (mfrc522ReadByteAtAddress(CommandReg) & (1 << 4)) {
+        // PCD still restarting - unlikely after waiting 50ms, but better safe than sorry.
+    }
 
+    //    const bool value = performSelfTest();
+    //    if (value) {
+    //        _delay_ms(1);
+    //    }
+}
+
+/**
+ * Turns the antenna on by enabling pins TX1 and TX2.
+ * After a reset these pins are disabled.
+ */
+void enableReaderAntenna() {
+    const uint8_t value = mfrc522ReadByteAtAddress(TxControlReg);
+    if ((value & 0x03) != 0x03) {
+        mfrc522WriteByteAtAddress(TxControlReg, value | 0x03);
+    }
+}
     // Test passed; all is good.
     return true;
 }
@@ -245,17 +274,25 @@ void initializeReader(void) {
     // Reset ModWidthReg
     mfrc522WriteByteAtAddress(ModWidthReg, 0x26);
 
-    // When communicating with a PICC we need a timeout if something goes wrong.
-    // f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
-    // TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
-    mfrc522WriteByteAtAddress(TModeReg, 0x80); // TAuto=1; timer starts automatically at the end of the transmission in all communication modes at all speeds
-    mfrc522WriteByteAtAddress(TPrescalerReg, 0xA9); // TPreScaler = TModeReg[3..0]:TPrescalerReg, ie 0x0A9 = 169 => f_timer=40kHz, ie a timer period of 25�s.
-    mfrc522WriteByteAtAddress(TReloadRegH, 0x03); // Reload timer with 0x3E8 = 1000, ie 25ms before timeout.
-    mfrc522WriteByteAtAddress(TReloadRegL, 0xE8);
+//    // When communicating with a PICC we need a timeout if something goes wrong.
+//    // f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
+//    // TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
+//    mfrc522WriteByteAtAddress(TModeReg, 0x80); // TAuto=1; timer starts automatically at the end of the transmission in all communication modes at all speeds
+//    mfrc522WriteByteAtAddress(TPrescalerReg, 0xA9); // TPreScaler = TModeReg[3..0]:TPrescalerReg, ie 0x0A9 = 169 => f_timer=40kHz, ie a timer period of 25�s.
+//    mfrc522WriteByteAtAddress(TReloadRegH, 0x03); // Reload timer with 0x3E8 = 1000, ie 25ms before timeout.
+//    mfrc522WriteByteAtAddress(TReloadRegL, 0xE8);
 
+    mfrc522WriteByteAtAddress(TModeReg, 0x8D);
+    mfrc522WriteByteAtAddress(TPrescalerReg, 0x3E);
+    mfrc522WriteByteAtAddress(TReloadRegL, 30);   
+    mfrc522WriteByteAtAddress(TReloadRegH, 0);
+    
     mfrc522WriteByteAtAddress(TxASKReg, 0x40); // Default 0x00. Force a 100 % ASK modulation independent of the ModGsPReg register setting
     mfrc522WriteByteAtAddress(ModeReg, 0x3D); // Default 0x3F. Set the preset value for the CRC coprocessor for the CalcCRC command to 0x6363 (ISO 14443-3 part 6.2.4)
     enableReaderAntenna(); // Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
+
+    setReaderRegisterBitmask(ComIEnReg, 0x20);
+    setReaderRegisterBitmask(DivIEnReg, 0x80);
 }
 
 PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to execute. One of the PCD_Command enums.
@@ -299,7 +336,7 @@ PiccResult PCD_CommunicateWithPICC(const uint8_t command, ///< The command to ex
             return PICC_RESULT_TIMEOUT;
         }
     }
-
+    
     // Stop now if any errors except collisions were detected.
     const uint8_t errorRegValue = mfrc522ReadByteAtAddress(ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
     if (errorRegValue & 0x13) { // BufferOvfl ParityErr ProtocolErr
@@ -386,10 +423,13 @@ PiccResult piccRequestA(uint8_t * const buffer, uint8_t buffer_size) {
         return PICC_RESULT_BUFFER_TOO_SHORT;
     }
 
+    mfrc522WriteByteAtAddress(BitFramingReg, 0x07); //TxLastBists = BitFramingReg[2..0]
     clearReaderRegisterBitmask(CollReg, 0x80);
     // For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) byte. TxLastBits = BitFramingReg[2..0]
     uint8_t valid_bits = 7;
-    const uint8_t command = PICC_CMD_REQA;
+    const uint8_t command = PICC_CMD_WUPA;
+    buffer[0] = command;
+    
     PiccResult status = PCD_TransceiveData(&command, 1, buffer, &buffer_size, &valid_bits);
     if (status != PICC_RESULT_OK) {
         return status;
