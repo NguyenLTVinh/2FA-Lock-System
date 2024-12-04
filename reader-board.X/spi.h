@@ -19,11 +19,11 @@ extern "C" {
     
     uint8_t spiReadByteAtAddress(const uint8_t address);
     
-    bool spiReadDataAtAddress(const uint8_t address, uint8_t * const data, const uint8_t length);
+    void spiReadDataAtAddress(const uint8_t address, uint8_t * const data, const uint8_t length);
     
-    bool spiWriteByteAtAddress(const uint8_t address, const uint8_t byte);
+    void spiWriteByteAtAddress(const uint8_t address, const uint8_t byte);
     
-    bool spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length);
+    void spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length);
 
 #ifdef	__cplusplus
 }
