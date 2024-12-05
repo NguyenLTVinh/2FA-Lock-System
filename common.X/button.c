@@ -1,4 +1,4 @@
-#include "Button.h"
+#include "button.h"
 
 void initializeButton(const Button * const button) {
     (*button->port).DIRCLR = button->bitmask;

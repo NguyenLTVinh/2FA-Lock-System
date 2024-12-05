@@ -7,6 +7,10 @@ extern "C" {
 
     void initializeUsart(void);
 
+    void usartWriteCharacter(const char character);
+
+    char usartReadCharacter(void);
+
     void usartWriteCommand(const char *const command);
 
     void usartReadUntil(char *const destination, const char *const end_string);
@@ -16,4 +20,3 @@ extern "C" {
 #endif
 
 #endif	/* USART_H */
-

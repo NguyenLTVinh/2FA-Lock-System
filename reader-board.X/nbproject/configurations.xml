@@ -24,8 +24,15 @@
       <itemPath>rfid-reader.c</itemPath>
       <itemPath>spi.c</itemPath>
       <itemPath>mfrc522.c</itemPath>
+      <itemPath>bluetooth_reader.c</itemPath>
+      <itemPath>bluetooth_reader.h</itemPath>
+      <itemPath>keypad.c</itemPath>
+      <itemPath>keypad.h</itemPath>
     </logicalFolder>
   </logicalFolder>
+  <sourceRootList>
+    <Elem>..</Elem>
+  </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
     <conf name="default" type="2">
