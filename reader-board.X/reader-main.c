@@ -1,6 +1,7 @@
 #include "../common.X/main.h"
 #include "../common.X/button.h"
-#inlcude "../common.X/bluetooth.h"
+#include "../common.X/bluetooth.h"
+#include "../common.X/usart.h"
 #include "keypad.h"
 #include "bluetooth_reader.h"
 #include "rfid-reader.h"
@@ -20,7 +21,7 @@ ISR(ADC0_RESRDY_vect) {
     char key = ADCGetKey(adc_result);
     // Send the key via USART if it's not Key_None
     if (key != Key_None) {
-        usartWriteChar(key);
+        usartWriteCharacter(key);
         _delay_ms(500);
     }
     // Clear ADC interrupt flag
@@ -44,10 +45,6 @@ int main(void) {
         PORTD.OUTTGL = PIN1_bm;
         
         _delay_ms(250);
-    }
-
-    if (isButtonPressed(&TEST_BUTTON)) {
-        return 1;
     }
 
     return 0;

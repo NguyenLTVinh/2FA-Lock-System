@@ -1,6 +1,6 @@
 #ifndef KEYPAD_H
 #define	KEYPAD_H
-
+#include <stdint.h>
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -21,13 +21,7 @@ extern "C" {
         Key_F		= 'F'
     };
 
-    const char kpMap[4][3] = {
-        {Key_1, Key_2, Key_3},
-        {Key_4, Key_5, Key_6},
-        {Key_7, Key_8, Key_9},
-        {Key_E, Key_0, Key_F}
-    };
-
+    extern const char kpMap[4][3];
     void keyPadInit();
     enum KeypadKey_t getKey();
     void ADCKeyPadInit();
