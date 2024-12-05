@@ -9,6 +9,7 @@
       <itemPath>mfrc522.h</itemPath>
       <itemPath>bluetooth_reader.h</itemPath>
       <itemPath>keypad.h</itemPath>
+      <itemPath>lcd.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -28,6 +29,7 @@
       <itemPath>mfrc522.c</itemPath>
       <itemPath>bluetooth_reader.c</itemPath>
       <itemPath>keypad.c</itemPath>
+      <itemPath>lcd.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <sourceRootList>

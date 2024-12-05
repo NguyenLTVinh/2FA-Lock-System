@@ -1,7 +1,9 @@
 #include "../common.X/main.h"
 #include "../common.X/button.h"
 #include "../common.X/bluetooth.h"
+#include "../common.X/two_wire_interface.h"
 #include "../common.X/usart.h"
+#include "spi.h"
 #include "keypad.h"
 #include "bluetooth_reader.h"
 #include "rfid-reader.h"
@@ -31,7 +33,13 @@ ISR(ADC0_RESRDY_vect) {
 
 int main(void) {
     //    initializeCommonBoardFunctions("DoorLockReader");
+    initializeUsart();
+    initializeTwi();
+    initializeSpi();
     initializeReader();
+    bluetoothInit();
+    ADCKeyPadInit();
+
 
     PORTD.DIRSET = PIN1_bm;
     
