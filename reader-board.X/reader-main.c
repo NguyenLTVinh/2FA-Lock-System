@@ -1,22 +1,30 @@
 #include "../common.X/main.h"
 #include "../common.X/button.h"
 #include "../common.X/two_wire_interface.h"
+#inlcude "../common.X/bluetooth.h"
+#include "keypad.h"
+#include "bluetooth_reader.h"
+
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-Button TEST_BUTTON = CREATE_BUTTON(PORTA, PIN1_bp);
+// Setups for the keypad
+volatile uint16_t adc_result = 0;
 
-#define BUTTONS_COUNT 1
-Button * const BUTTONS[BUTTONS_COUNT] = {
-    &TEST_BUTTON,
-};
-
-ISR(PORTA_PORT_vect) {
-    for (uint8_t i = 0; i < BUTTONS_COUNT; ++i) {
-        checkButtonPress(BUTTONS[i]);
+ISR(ADC0_RESRDY_vect) {
+    adc_result = ADC0.RES;
+    // Get the corresponding key for the ADC value
+    char key = ADCGetKey(adc_result);
+    // Send the key via USART if it's not Key_None
+    if (key != Key_None) {
+        usartWriteChar(key);
+        _delay_ms(500);
     }
+    // Clear ADC interrupt flag
+    ADC0.INTFLAGS = ADC_RESRDY_bm;
 }
+
 
 int main(void) {
     initializeCommonBoardFunctions("DoorLockReader");

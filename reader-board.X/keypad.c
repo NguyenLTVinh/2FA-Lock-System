@@ -14,6 +14,7 @@
 #define Keypad_C1			A, 3
 #define Keypad_C2			A, 2
 
+// Init the keypad using 7 pins
 void keyPadInit() 
 {
     // Configure rows as inputs with pull-up resistors
@@ -96,4 +97,36 @@ enum KeypadKey_t getKey()
         }
     }
     return Key_None; // No key was pressed
+}
+
+// Init the keypad with analog read, using 1 pin only
+void ADCKeyPadInit() 
+{
+    PORTD.DIRCLR = PIN1_bm;
+    PORTD.PIN1CTRL &= ~PORT_PULLUPEN_bm;
+    PORTD.PIN1CTRL &= ~PORT_ISC_gm;
+    PORTD.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+    ADC0.CTRLC = ADC_REFSEL_VDDREF_gc | ADC_PRESC_DIV4_gc;
+    ADC0.MUXPOS = ADC_MUXPOS_AIN1_gc;
+    ADC0.CTRLA = ADC_ENABLE_bm | ADC_FREERUN_bm | ADC_RESSEL_10BIT_gc;
+    ADC0.INTCTRL = ADC_RESRDY_bm;
+    ADC0.COMMAND = ADC_STCONV_bm;
+}
+
+
+char ADCGetKey(uint16_t adc_value) 
+{
+    if (adc_value >= 696 && adc_value <= 698) return '1';
+    else if (adc_value >= 545 && adc_value <= 547) return '2';
+    else if (adc_value >= 120 && adc_value <= 300) return '3';
+    else if (adc_value >= 889 && adc_value <= 891) return '4';
+    else if (adc_value >= 868 && adc_value <= 870) return '5';
+    else if (adc_value >= 841 && adc_value <= 843) return '6';
+    else if (adc_value >= 938 && adc_value <= 940) return '7';
+    else if (adc_value >= 931 && adc_value <= 933) return '8';
+    else if (adc_value >= 922 && adc_value <= 924) return '9';
+    else if (adc_value >= 961 && adc_value <= 963) return 'E';
+    else if (adc_value >= 957 && adc_value <= 959) return '0';
+    else if (adc_value >= 953 && adc_value <= 955) return 'F';
+    else return Key_None;
 }

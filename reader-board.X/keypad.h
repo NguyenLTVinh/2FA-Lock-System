@@ -30,6 +30,8 @@ extern "C" {
 
     void keyPadInit();
     enum KeypadKey_t getKey();
+    void ADCKeyPadInit();
+    char ADCGetKey(uint16_t adc_value);
 
 #ifdef	__cplusplus
 }
