@@ -6,15 +6,15 @@
 #include "spi.h"
 #include "keypad.h"
 #include "bluetooth_reader.h"
-#include "rfid-reader.h"
 #include "lcd.h"
+#include "mfrc522.h"
 
+#include <util/delay.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <string.h>
 #include <stdio.h>
 #include "../common.X/globals.h"
-#include <util/delay.h>
 
 #define RFID_READER_BUFFER_SIZE 32
 #define BUF_SIZE 32
@@ -43,9 +43,9 @@ void setup() {
     initializeUsart();
     initializeTwi();
     initializeSpi();
-    initializeReader();
     bluetoothInit();
     //bluetoothInitReader();
+    initializeMfrc522();
     ADCKeyPadInit();
     device = lq_init(0x27, 20, 4, LCD_5x8DOTS);
     lq_turnOnBacklight(&device);
@@ -66,13 +66,9 @@ ISR(ADC0_RESRDY_vect) {
 
 
 int main(void) {
-    //    initializeCommonBoardFunctions("DoorLockReader");
     setup();
     sei();
-//    while (1) {
-//        bluetoothWriteBytes("TEST", 2);
-//    }
-     while (1) {
+    while (1) {
          switch (currentState) {
              case IDLE:
                  idleState();
@@ -97,28 +93,6 @@ int main(void) {
 void idleState() {
     lq_clear(&device);
     lq_print(&device, "Scan Keycard");
-
-    Uid card;
-
-    while (currentState == IDLE) { // Stay in IDLE until a card is scanned
-        if (readRfidCard(&card)) {
-            // Format the UID into a string
-            char uidString[RFID_READER_BUFFER_SIZE] = {0};
-            for (uint8_t i = 0; i < card.size; i++) {
-                sprintf(&uidString[i * 2], "%02X", card.uidByte[i]);
-            }
-            // Send the UID to the controller via Bluetooth
-            bluetoothWriteBytes(uidString, strlen(uidString));
-            // Wait for controller response
-            char response[BUF_SIZE];
-            bluetoothReadBytes(response, 4);
-            if (strcmp(response, "AOK") == 0) {
-                currentState = PASSCODE;
-            } else {
-                currentState = RFIDERR;
-            }
-        }
-    }
 }
 
 void rfidErrorState() {

@@ -21,14 +21,7 @@ void initializeSpi(void) {
     SPI_PORT.DIRSET = SPI_MOSI | SPI_SCK | SPI_SS;
     // Set input ports as input
     SPI_PORT.DIRCLR = SPI_MISO;
-
-    SPI0.CTRLA = SPI_DORD_bm |
-            SPI_MASTER_bm |
-            SPI_PRESC_DIV16_gc;
-
-//    SPI0.CTRLB = DISABLE_CLIENT_SELECT;
-
-    SPI0.CTRLA |= SPI_ENABLE_bm;
+    SPI0.CTRLA = SPI_ENABLE_bm | SPI_MASTER_bm | SPI_PRESC_DIV4_gc | SPI_CLK2X_bm;
 }
 
 uint8_t spiTransferByte(const uint8_t byte) {
@@ -53,39 +46,30 @@ uint8_t spiReadByteAtAddress(const uint8_t address) {
     return byte;
 }
 
-bool spiReadDataAtAddress(const uint8_t address, uint8_t * const data, const uint8_t length) {
+void spiReadDataAtAddress(const uint8_t address, uint8_t * const data, const uint8_t length) {
     enableDevice();
     spiTransferByte(address);
-    
+
     for (uint8_t i = 0; i < length - 1; ++i) {
-        data[i] = spiTransferByte(address + i);
+        data[i] = spiTransferByte(address);
     }
-    
+
     data[length - 1] = spiTransferByte(0);
-    
+
     disableDevice();
-    
-    return true;
 }
 
-bool spiWriteByteAtAddress(const uint8_t address, const uint8_t byte) {
+void spiWriteByteAtAddress(const uint8_t address, const uint8_t byte) {
     enableDevice();
     spiTransferByte(address);
     spiTransferByte(byte);
     disableDevice();
-    
-    return true;
 }
 
-bool spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length) {
-    enableDevice();
-    spiTransferByte(address);
-    
-    for (uint8_t i = 0; i < length - 1; ++i) {
-        spiTransferByte(data[i]);
+void spiWriteDataAtAddress(const uint8_t address, const uint8_t * const data, const uint8_t length) {
+    // TODO: why does batching as described in section 10.2.3 of MFRC522 data sheet not work?
+
+    for (uint8_t i = 0; i < length; ++i) {
+        spiWriteByteAtAddress(address, data[i]);
     }
-    
-    disableDevice();
-    
-    return true;
 }
