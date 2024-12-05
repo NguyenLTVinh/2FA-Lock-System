@@ -5,108 +5,103 @@
 #include <util/delay.h>
 #include <string.h>
 
-//PORT, PIN, can change
-#define Keypad_R0			D, 5
-#define Keypad_R1			D, 1
-#define Keypad_R2			D, 6
-#define Keypad_R3			C, 1    
-#define Keypad_C0			C, 0
-#define Keypad_C1			A, 3
-#define Keypad_C2			A, 2
+// Updated pin definitions
+#define Keypad_R0           D, 7
+#define Keypad_R1           D, 5
+#define Keypad_R3           D, 1
+#define Keypad_C0           D, 6
+#define Keypad_C1           C, 1
+#define Keypad_C2           C, 0
 
-const char kpMap[4][3] = {
-    {Key_1, Key_2, Key_3},
-    {Key_4, Key_5, Key_6},
-    {Key_7, Key_8, Key_9},
-    {Key_E, Key_0, Key_F}
+// Keypad Key Mapping for 4x3 Layout (without 3rd row). Had to sacrifice 3rd row because not enough pins :(
+const char kpMap[3][3] = {
+    {Key_1, Key_2, Key_3}, // Row 0
+    {Key_4, Key_5, Key_6}, // Row 1
+    {Key_E, Key_0, Key_F}  // Row 3 (R2 is excluded)
 };
 
-// Init the keypad using 7 pins
 void keyPadInit() 
 {
     // Configure rows as inputs with pull-up resistors
-    PORTD.DIR &= ~PIN5_bm;                // Set Keypad_R0 (D5) as input
-    PORTD.PIN5CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R0 (D5)
-    PORTD.DIR &= ~PIN1_bm;                // Set Keypad_R1 (D1) as input
-    PORTD.PIN1CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R1 (D1)
-    PORTD.DIR &= ~PIN6_bm;                // Set Keypad_R2 (D6) as input
-    PORTD.PIN6CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R2 (D6)
-    PORTC.DIR &= ~PIN1_bm;                // Set Keypad_R3 (C1) as input
-    PORTC.PIN1CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R3 (C1)
-    // Configure columns as outputs and set to low
-    PORTC.DIR &= ~PIN0_bm;                 // Set Keypad_C0 (C0) as input
-    PORTA.DIR &= ~PIN3_bm;                 // Set Keypad_C1 (A3) as input
-    PORTA.DIR &= ~PIN2_bm;                 // Set Keypad_C2 (A2) as input
+    PORTD.DIR &= ~PIN7_bm;                // Set Keypad_R0 (D7) as input
+    PORTD.PIN7CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R0 (D7)
+    PORTD.DIR &= ~PIN5_bm;                // Set Keypad_R1 (D5) as input
+    PORTD.PIN5CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R1 (D5)
+    PORTD.DIR &= ~PIN1_bm;                // Set Keypad_R3 (D1) as input
+    PORTD.PIN1CTRL |= PORT_PULLUPEN_bm;  // Enable pull-up resistor on Keypad_R3 (D1)
+    
+    // Configure columns as inputs initially
+    PORTD.DIR &= ~PIN6_bm;                // Set Keypad_C0 (D6) as input
+    PORTC.DIR &= ~PIN1_bm;                // Set Keypad_C1 (C1) as input
+    PORTC.DIR &= ~PIN0_bm;                // Set Keypad_C2 (C0) as input
 }
 
-// Get the currently pressed key
 enum KeypadKey_t getKey()
 {
-    unsigned char row , col;	
+    unsigned char row, col;	
     
     for (uint8_t col = 0; col < 3; col++) {
-        _delay_ms(10);									// wait 10ms for button de-bouncing
-        PORTC.DIR &= ~(1 << PIN0_bp);  // Set Keypad_C0 (C0) as input
-        PORTA.DIR &= ~(1 << PIN3_bp);  // Set Keypad_C1 (A3) as input
-        PORTA.DIR &= ~(1 << PIN2_bp);  // Set Keypad_C2 (A2) as input
-		// make only current column as output
+        _delay_ms(10);  // wait 10ms for button de-bouncing
+        
+        // Set all columns to input
+        PORTD.DIR &= ~PIN6_bm;  // Keypad_C0 (D6)
+        PORTC.DIR &= ~PIN1_bm;  // Keypad_C1 (C1)
+        PORTC.DIR &= ~PIN0_bm;  // Keypad_C2 (C0)
+
+        // Make only the current column an output and set it low
         switch (col) {
             case 0:
-                PORTC.DIR |= (1 << PIN0_bp);  // Set Keypad_C0 as output
-                PORTC.OUT &= ~(1 << PIN0_bp); // Set Keypad_C0 to low
+                PORTD.DIR |= PIN6_bm;     // Set Keypad_C0 as output
+                PORTD.OUT &= ~PIN6_bm;    // Set Keypad_C0 to low
                 break;
             case 1:
-                PORTA.DIR |= (1 << PIN3_bp);  // Set Keypad_C1 as output
-                PORTA.OUT &= ~(1 << PIN3_bp); // Set Keypad_C1 to low
+                PORTC.DIR |= PIN1_bm;     // Set Keypad_C1 as output
+                PORTC.OUT &= ~PIN1_bm;    // Set Keypad_C1 to low
                 break;
             case 2:
-                PORTA.DIR |= (1 << PIN2_bp);  // Set Keypad_C2 as output
-                PORTA.OUT &= ~(1 << PIN2_bp); // Set Keypad_C2 to low
+                PORTC.DIR |= PIN0_bm;     // Set Keypad_C2 as output
+                PORTC.OUT &= ~PIN0_bm;    // Set Keypad_C2 to low
                 break;
         }
-		// make only current column output is low
-		for (row = 0; row < 4; row++) {   
-            // Check if the current row reads low, indicating a key press
+        
+        // Check rows for a pressed key
+        for (row = 0; row < 3; row++) {  // Only rows 0, 1, 3 are used
             switch (row) {
                 case 0:
-                    if (!(PORTD.IN & (1 << PIN5_bp))) { // Check Keypad_R0 (D5)
+                    if (!(PORTD.IN & PIN7_bm)) { // Check Keypad_R0 (D7)
                         return kpMap[row][col];
                     }
                     break;
                 case 1:
-                    if (!(PORTD.IN & (1 << PIN1_bp))) { // Check Keypad_R1 (D1)
+                    if (!(PORTD.IN & PIN5_bm)) { // Check Keypad_R1 (D5)
                         return kpMap[row][col];
                     }
                     break;
-                case 2:
-                    if (!(PORTD.IN & (1 << PIN6_bp))) { // Check Keypad_R2 (D6)
-                        return kpMap[row][col];
-                    }
-                    break;
-                case 3:
-                    if (!(PORTC.IN & (1 << PIN1_bp))) { // Check Keypad_R3 (C1)
+                case 2: // Row 3 mapped to R3
+                    if (!(PORTD.IN & PIN1_bm)) { // Check Keypad_R3 (D1)
                         return kpMap[row][col];
                     }
                     break;
             }
         }
-        // Reset the current column
+        
+        // Reset the current column to input
         switch (col) {
             case 0:
-                PORTC.DIR &= ~(1 << PIN0_bp); // Set Keypad_C0 to input
+                PORTD.DIR &= ~PIN6_bm; // Keypad_C0 to input
                 break;
             case 1:
-                PORTA.DIR &= ~(1 << PIN3_bp); // Set Keypad_C1 to input
+                PORTC.DIR &= ~PIN1_bm; // Keypad_C1 to input
                 break;
             case 2:
-                PORTA.DIR &= ~(1 << PIN2_bp); // Set Keypad_C2 to input
+                PORTC.DIR &= ~PIN0_bm; // Keypad_C2 to input
                 break;
         }
     }
     return Key_None; // No key was pressed
 }
 
-// Init the keypad with analog read, using 1 pin only
+// Init the keypad with analog read, using 1 pin only (Somehow breaks over night)
 void ADCKeyPadInit() 
 {
     PORTD.DIRCLR = PIN1_bm;

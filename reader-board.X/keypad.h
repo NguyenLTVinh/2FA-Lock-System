@@ -21,7 +21,7 @@ extern "C" {
         Key_F		= 'F'
     };
 
-    extern const char kpMap[4][3];
+    extern const char kpMap[3][3];
     void keyPadInit();
     enum KeypadKey_t getKey();
     void ADCKeyPadInit();
