@@ -42,9 +42,14 @@ void accessGrantedState();
 void setup() {
     initializeUsart();
     initializeTwi();
-    initializeSpi();
     bluetoothInit();
-    //bluetoothInitReader();
+
+    char buf[BUF_SIZE];
+    // Put RN4870 in Command Mode
+    sendBluetoothCommand("$$$", "CMD> ");
+    // Enable advertising
+    sendBluetoothCommand("A\r\n", "CMD> ");
+    usartReadUntil(buf, "%STREAM_OPEN%");
     initializeMfrc522();
     ADCKeyPadInit();
     device = lq_init(0x27, 20, 4, LCD_5x8DOTS);
@@ -57,7 +62,7 @@ ISR(ADC0_RESRDY_vect) {
     char key = ADCGetKey(adc_result);
     // Send the key via USART if it's not Key_None
     if (key != Key_None) {
-        usartWriteCharacter(key);
+        //usartWriteCharacter(key);
         _delay_ms(500);
     }
     // Clear ADC interrupt flag
@@ -68,24 +73,25 @@ ISR(ADC0_RESRDY_vect) {
 int main(void) {
     setup();
     sei();
+    
     while (1) {
-         switch (currentState) {
-             case IDLE:
-                 idleState();
-                 break;
-             case RFIDERR:
-                 rfidErrorState();
-                 break;
-             case PASSCODE:
-                 passcodeState();
-                 break;
-             case PASSCODEERR:
-                 passcodeErrorState();
-                 break;
-             case ACCESSGRANTED:
-                 accessGrantedState();
-                 break;
-         }
+        switch (currentState) {
+            case IDLE:
+                idleState();
+                break;
+            case RFIDERR:
+                rfidErrorState();
+                break;
+            case PASSCODE:
+                passcodeState();
+                break;
+            case PASSCODEERR:
+                passcodeErrorState();
+                break;
+            case ACCESSGRANTED:
+                accessGrantedState();
+                break;
+        }
     }
     return 0;
 }
@@ -93,12 +99,38 @@ int main(void) {
 void idleState() {
     lq_clear(&device);
     lq_print(&device, "Scan Keycard");
+
+    Picc card;
+    char uid_string[21] = {0}; // Buffer to store UID as a string
+
+    while (currentState == IDLE) { // Stay in IDLE until a card is scanned
+        if (readPicc(&card)) {
+            // Convert the UID bytes to a hexadecimal string
+            for (uint8_t i = 0; i < card.size; ++i) {
+                sprintf(&uid_string[2 * i], "%02X", card.uidByte[i]);
+            }
+
+            // Send the UID to the controller via Bluetooth
+            bluetoothWriteBytes(uid_string, strlen(uid_string));
+
+            // Wait for the controller response
+            // NOTE: Some weird issue with BLE encoding, will have to fix later
+            char response[BUF_SIZE];
+            bluetoothReadBytes(response, 4);
+            usartWriteCommand(response);
+            if (strcmp(response, "AOK") == 0) {
+                currentState = PASSCODE;
+            } else {
+                currentState = RFIDERR;
+            }
+        }
+    }
 }
 
 void rfidErrorState() {
     lq_clear(&device);
     lq_print(&device, "Keycard Not Recognized");
-    _delay_ms(1000);
+    _delay_ms(200);
     // Transition to IDLE
     currentState = IDLE;
 }
@@ -111,13 +143,13 @@ void passcodeState() {
 void passcodeErrorState() {
     lq_clear(&device);
     lq_print(&device, "Incorrect Passcode");
-    _delay_ms(1000);
+    _delay_ms(200);
     currentState = PASSCODE;
 }
 
 void accessGrantedState() {
     lq_clear(&device);
     lq_print(&device, "Lock Opened!");
-    _delay_ms(1000);
+    _delay_ms(200);
     currentState = IDLE;
 }

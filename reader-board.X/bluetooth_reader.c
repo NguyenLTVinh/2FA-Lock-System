@@ -16,8 +16,6 @@ void bluetoothInitReader() {
     char buf[BUF_SIZE];
     // Put RN4870 in Command Mode
     sendBluetoothCommand("$$$", BLE_RADIO_PROMPT);
-    // Display info for MAC
-    sendBluetoothCommand("D\r\n", BLE_RADIO_PROMPT);
     // Enable advertising
     sendBluetoothCommand("A\r\n", BLE_RADIO_PROMPT);
     // Wait until connected by the central board
