@@ -32,6 +32,7 @@ typedef enum {
 volatile LockState_t currentState = IDLE;
 LiquidCrystalDevice_t device;
 volatile uint16_t adc_result = 0;
+char status[3];
 
 void idleState();
 void rfidErrorState();
@@ -47,11 +48,11 @@ void setup() {
     // For some reason, calling the init reader function would not work? So I'm doing the rest of the init here.
     char buf[BUF_SIZE];
     // Put RN4870 in Command Mode
-    sendBluetoothCommand("$$$", "CMD> ");
-    // Enable advertising
-    sendBluetoothCommand("A\r\n", "CMD> ");
-    // Wait until connected by the central board
-    usartReadUntil(buf, "%STREAM_OPEN%");
+//    sendBluetoothCommand("$$$", "CMD> ");
+//    // Enable advertising
+//    sendBluetoothCommand("A\r\n", "CMD> ");
+//    // Wait until connected by the central board
+//    usartReadUntil(buf, "%STREAM_OPEN%");
     initializeMfrc522();
     keyPadInit();
     device = lq_init(0x27, 20, 4, LCD_5x8DOTS);
@@ -117,7 +118,8 @@ void idleState() {
             lq_print(&device, "Reading Card...");
             // Wait for the controller response
             char response[BUF_SIZE];
-            bluetoothReadBytes(response, 3);
+            usartReadUntil(response, ">");
+            extractLastCharacters(response, status, 3);
             if (strcmp(response, "AOK") == 0) {
                 currentState = PASSCODE;
             } else {
@@ -159,6 +161,8 @@ void passcodeState() {
                     lq_setCursor(&device, 1, passcodeIndex);
                     lq_print(&device, " "); // Clear the character on the LCD
                     lq_setCursor(&device, 1, passcodeIndex);
+                } else {
+                    currentState = IDLE;
                 }
             } else if (key == 'F') {
                 // Submit passcode if F is pressed
@@ -169,8 +173,9 @@ void passcodeState() {
                     lq_print(&device, "Checking...");
                     // Read response from the controller
                     char response[BUF_SIZE];
-                    bluetoothReadBytes(response, 3);
-                    if (strcmp(response, "AOK") == 0) {
+                    usartReadUntil(response, ">");
+                    extractLastCharacters(response, status, 3);
+                    if (strcmp(status, "AOK") == 0) {
                         currentState = ACCESSGRANTED;
                     } else {
                         currentState = PASSCODEERR;
@@ -199,7 +204,8 @@ void passcodeErrorState() {
 
 void accessGrantedState() {
     lq_clear(&device);
-    lq_print(&device, "Lock Opened!");
-    _delay_ms(2000);
+    lq_print(&device, "Unlocked!");
+    _delay_ms(5000);
+    lq_print(&device, "Locked!");
     currentState = IDLE;
 }

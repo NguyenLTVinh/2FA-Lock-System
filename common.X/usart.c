@@ -37,6 +37,7 @@ char usartReadCharacter(void) {
 }
 
 void usartReadUntil(char *const destination, const char *const end_string) {
+    memset(destination, 0, strlen(destination));
     const uint8_t destination_length = strlen(destination) - 1;
     const uint8_t end_len = strlen(end_string);
     uint8_t bytes_read = 0;
@@ -45,4 +46,16 @@ void usartReadUntil(char *const destination, const char *const end_string) {
         ++bytes_read;
     }
     destination[bytes_read] = 0;
+}
+
+void extractLastCharacters(const char *input, char *output, size_t numChars) {
+    size_t len = strlen(input);
+    if (len == 0 || input[len - 1] != '>' || numChars > len - 1) {
+        output[0] = '\0';
+        return;
+    }
+    // Calculate the starting position for the substring
+    size_t start = len - 1 - numChars; // Exclude the '>'
+    strncpy(output, &input[start], numChars);
+    output[numChars] = '\0';
 }

@@ -14,6 +14,8 @@ extern "C" {
     void usartWriteCommand(const char *const command);
 
     void usartReadUntil(char *const destination, const char *const end_string);
+    
+    void extractLastCharacters(const char *input, char *output, size_t numChars)
 
 #ifdef	__cplusplus
 }
