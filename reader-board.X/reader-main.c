@@ -43,33 +43,12 @@ void accessGrantedState();
 void setup() {
     initializeUsart();
     initializeTwi();
-    bluetoothInit();
-    _delay_ms(500); // Some time for BLE module to boot up
-    // For some reason, calling the init reader function would not work? So I'm doing the rest of the init here.
-    char buf[BUF_SIZE];
-    // Put RN4870 in Command Mode
-//    sendBluetoothCommand("$$$", "CMD> ");
-//    // Enable advertising
-//    sendBluetoothCommand("A\r\n", "CMD> ");
-//    // Wait until connected by the central board
-//    usartReadUntil(buf, "%STREAM_OPEN%");
     initializeMfrc522();
     keyPadInit();
+    bluetoothInit();
     device = lq_init(0x27, 20, 4, LCD_5x8DOTS);
     lq_turnOnBacklight(&device);
 }
-
-// ISR(ADC0_RESRDY_vect) {
-//     adc_result = ADC0.RES;
-//     // Clear ADC interrupt flag
-//     char key = ADCGetKey(adc_result);
-//     if (adc_result < 1000) {
-//         usartWriteCharacter(key);
-//         _delay_ms(500);
-//     }
-            
-//     ADC0.INTFLAGS = ADC_RESRDY_bm;
-// }
 
 int main(void) 
 {
@@ -103,7 +82,7 @@ void idleState() {
     lq_clear(&device);
     lq_print(&device, "Scan Keycard");
     Picc card;
-    char uid_string[21] = {0}; // Buffer to store UID as a string
+    char uid_string[10] = {0}; // Buffer to store UID as a string
 
     while (currentState == IDLE) { // Stay in IDLE until a card is scanned
         if (readPicc(&card)) {
@@ -113,14 +92,16 @@ void idleState() {
             }
 
             // Send the UID to the controller via Bluetooth
+            uid_string[8] = '|';
+            uid_string[9] = '\0';
             usartWriteCommand(uid_string);
             lq_clear(&device);
             lq_print(&device, "Reading Card...");
             // Wait for the controller response
             char response[BUF_SIZE];
-            usartReadUntil(response, ">");
+            usartReadUntil(response, "|");
             extractLastCharacters(response, status, 3);
-            if (strcmp(response, "AOK") == 0) {
+            if (strcmp(status, "AOK") == 0) {
                 currentState = PASSCODE;
             } else {
                 currentState = RFIDERR;
@@ -144,7 +125,7 @@ void passcodeState() {
     lq_print(&device, "Enter Passcode");
     lq_setCursor(&device, 1, 0);
 
-    char passcode[5] = {0};
+    char passcode[6] = {0};
     uint8_t passcodeIndex = 0;
 
     while (currentState == PASSCODE) {
@@ -168,12 +149,14 @@ void passcodeState() {
                 // Submit passcode if F is pressed
                 if (passcodeIndex == 4) {
                     // Send passcode to the controller via Bluetooth
+                    passcode[4] = '|';
+                    passcode[5] = '\0';
                     usartWriteCommand(passcode);
                     lq_clear(&device);
                     lq_print(&device, "Checking...");
                     // Read response from the controller
                     char response[BUF_SIZE];
-                    usartReadUntil(response, ">");
+                    usartReadUntil(response, "|");
                     extractLastCharacters(response, status, 3);
                     if (strcmp(status, "AOK") == 0) {
                         currentState = ACCESSGRANTED;

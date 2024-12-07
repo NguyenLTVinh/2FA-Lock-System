@@ -24,8 +24,8 @@ typedef enum {
 
 // Global variables
 volatile ControllerState_t currentState = WAITING_FOR_RFID;
-char storedRfids[5][9] = {"ABCD1234", "5678EFGH", "9012IJKL", "3456MNOP", "7890QRST"}; // Example stored valid RFIDs
-char storedPasscodes[5][5] = {"1234", "5678", "9012", "3456", "7890"}; // Example stored valid passcodes
+char storedRfids[5][9] = {"378F1803", "92F80B01"}; //  Stored valid RFIDs
+char storedPasscodes[5][5] = {"1234", "2003", "4561"}; // Stored valid passcodes
 char buffer[128]; // Buffer for receiving data
 char rfid[9];
 char passcode[5];
@@ -42,6 +42,21 @@ void setup() {
     initializeUsart();
     bluetoothInit();
     //bluetoothInitController();
+    sendBluetoothCommand("$$$", "CMD> ");
+    // Enable Device Information and UART Transparent services
+    sendBluetoothCommand("SS,C0\r\n", "CMD> ");
+    // Reboot for the configuration to take effect
+    sendBluetoothCommand("R,1\r\n", "%REBOOT%");
+    // Need to enter command mode again
+    sendBluetoothCommand("$$$", "CMD> ");
+    // Add the peripheral's address to the white list
+    sendBluetoothCommand("JA,0,0491629A182C\r\n", "CMD> ");
+    // Scan for the device
+    sendBluetoothCommand("F\r\n", "0491629A182C"); // Make sure the peripheral is found
+    // Stop scan, return to command mode
+    sendBluetoothCommand("X\r\n", "CMD> ");
+    // Connect to the peripheral's device
+    usartWriteCommand("C,0,0491629A182C\r\n");
     doorLockInit();
     lockLock();
 }
@@ -81,9 +96,8 @@ int main(void) {
 }
 
 void waitRfidState() {
-    usartReadUntil(buffer, ">");
+    usartReadUntil(buffer, "|");
     extractLastCharacters(buffer, rfid, 8);
-    usartWriteCommand(rfid);
     currentState = VALIDATING_RFID;
 }
 
@@ -96,18 +110,17 @@ void validateRfidState() {
         }
     }
     if (valid) {
-        usartWriteCommand("AOK>");
+        usartWriteCommand("AOK|");
         currentState = WAITING_FOR_PASSCODE; // Proceed to passcode validation
     } else {
-        usartWriteCommand("ERR>");
+        usartWriteCommand("ERR|");
         currentState = WAITING_FOR_RFID; // Restart RFID validation
     }
 }
 
 void waitPasscodeState() {
-    usartReadUntil(buffer, ">");
+    usartReadUntil(buffer, "|");
     extractLastCharacters(buffer, passcode, 4);
-    usartWriteCommand(passcode);
     currentState = VALIDATING_PASSCODE;
 }
 
@@ -120,10 +133,10 @@ void validatePasscodeState() {
         }
     }
     if (valid) {
-        usartWriteCommand("AOK>");
+        usartWriteCommand("AOK|");
         currentState = ACCESS_GRANTED; // Proceed to unlock the door
     } else {
-        usartWriteCommand("ERR>");
+        usartWriteCommand("ERR|");
         currentState = WAITING_FOR_PASSCODE; // Retry passcode validation
     }
 }

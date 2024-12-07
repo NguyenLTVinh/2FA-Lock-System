@@ -23,7 +23,7 @@ void bluetoothInit() {
     // The AVR-BLE hardware guide is wrong. Labels this as D3
     // Tell BLE module to expect data - set D2 low
     PORTD.OUTCLR = PIN2_bm;
-    _delay_ms(200); // Give time for RN4870 to boot up
+    _delay_ms(500); // Give time for RN4870 to boot up
 }
 
 // Send bluetooth command and read until a response

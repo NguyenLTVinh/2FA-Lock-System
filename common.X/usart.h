@@ -1,3 +1,5 @@
+#include <avr/io.h>
+
 #ifndef USART_H
 #define	USART_H
 
@@ -15,7 +17,7 @@ extern "C" {
 
     void usartReadUntil(char *const destination, const char *const end_string);
     
-    void extractLastCharacters(const char *input, char *output, size_t numChars)
+    void extractLastCharacters(const char *input, char *output, uint8_t numChars);
 
 #ifdef	__cplusplus
 }

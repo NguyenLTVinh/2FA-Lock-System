@@ -48,14 +48,14 @@ void usartReadUntil(char *const destination, const char *const end_string) {
     destination[bytes_read] = 0;
 }
 
-void extractLastCharacters(const char *input, char *output, size_t numChars) {
-    size_t len = strlen(input);
-    if (len == 0 || input[len - 1] != '>' || numChars > len - 1) {
+void extractLastCharacters(const char *input, char *output, uint8_t numChars) {
+    uint8_t len = strlen(input);
+    if (len == 0 || input[len - 1] != '|' || numChars > len - 1) {
         output[0] = '\0';
         return;
     }
     // Calculate the starting position for the substring
-    size_t start = len - 1 - numChars; // Exclude the '>'
+    uint8_t start = len - 1 - numChars; // Exclude the '>'
     strncpy(output, &input[start], numChars);
     output[numChars] = '\0';
 }
