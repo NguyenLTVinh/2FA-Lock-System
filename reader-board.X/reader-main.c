@@ -33,6 +33,7 @@ volatile LockState_t currentState = IDLE;
 LiquidCrystalDevice_t device;
 volatile uint16_t adc_result = 0;
 char status[3];
+char uid_string[9] = {0}; // Buffer to store UID as a string
 
 void idleState();
 void rfidErrorState();
@@ -82,8 +83,7 @@ void idleState() {
     lq_clear(&device);
     lq_print(&device, "Scan Keycard");
     Picc card;
-    char uid_string[10] = {0}; // Buffer to store UID as a string
-
+    
     while (currentState == IDLE) { // Stay in IDLE until a card is scanned
         if (readPicc(&card)) {
             // Convert the UID bytes to a hexadecimal string
@@ -92,20 +92,21 @@ void idleState() {
             }
 
             // Send the UID to the controller via Bluetooth
-            uid_string[8] = '|';
-            uid_string[9] = '\0';
-            usartWriteCommand(uid_string);
-            lq_clear(&device);
-            lq_print(&device, "Reading Card...");
-            // Wait for the controller response
-            char response[BUF_SIZE];
-            usartReadUntil(response, "|");
-            extractLastCharacters(response, status, 3);
-            if (strcmp(status, "AOK") == 0) {
-                currentState = PASSCODE;
-            } else {
-                currentState = RFIDERR;
-            }
+            uid_string[8] = '\0';
+            currentState = PASSCODE;
+            // uid_string[9] = '\0';
+            // usartWriteCommand(uid_string);
+            // lq_clear(&device);
+            // lq_print(&device, "Reading Card...");
+            // // Wait for the controller response
+            // char response[BUF_SIZE];
+            // usartReadUntil(response, "|");
+            // extractLastCharacters(response, status, 3);
+            // if (strcmp(status, "AOK") == 0) {
+            //     currentState = PASSCODE;
+            // } else {
+            //     currentState = RFIDERR;
+            // }
         }
     }
 }
@@ -149,13 +150,15 @@ void passcodeState() {
                 // Submit passcode if F is pressed
                 if (passcodeIndex == 4) {
                     // Send passcode to the controller via Bluetooth
-                    passcode[4] = '|';
-                    passcode[5] = '\0';
+                    passcode[4] = '\0';
+                    usartWriteCommand(uid_string);
                     usartWriteCommand(passcode);
+                    usartWriteCharacter('|');
                     lq_clear(&device);
                     lq_print(&device, "Checking...");
                     // Read response from the controller
                     char response[BUF_SIZE];
+                    // bluetoothReadBytes(response, 4);
                     usartReadUntil(response, "|");
                     extractLastCharacters(response, status, 3);
                     if (strcmp(status, "AOK") == 0) {

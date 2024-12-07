@@ -3,6 +3,7 @@
 
 #include <avr/io.h>
 #include <string.h>
+#include <util/delay.h>
 
 // This is all based on formula in Table 23-1 of the ATmega 3208 data sheet
 // Need to shift value left 6 bits to follow format specified in data sheet:
@@ -37,8 +38,8 @@ char usartReadCharacter(void) {
 }
 
 void usartReadUntil(char *const destination, const char *const end_string) {
-    memset(destination, 0, strlen(destination));
-    const uint8_t destination_length = strlen(destination) - 1;
+    memset(destination, 0, 32);
+    const uint8_t destination_length = 32 - 1;
     const uint8_t end_len = strlen(end_string);
     uint8_t bytes_read = 0;
     while (bytes_read < destination_length && (bytes_read < end_len || strcmp(destination + bytes_read - end_len, end_string) != 0)) {
