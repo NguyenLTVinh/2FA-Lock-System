@@ -1,47 +1,27 @@
 #include "../common.X/main.h"
-#include "../common.X/button.h"
 #include "../common.X/bluetooth.h"
-#include "../common.X/two_wire_interface.h"
 #include "../common.X/usart.h"
 #include "bluetooth_controller.h"
 #include "doorlock_controller.h"
 
-#include <util/delay.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <string.h>
-#include <stdio.h>
 #include "../common.X/globals.h"
+#include <util/delay.h>
+#include <string.h>
+#include <stdbool.h>
 
-// Define states for the controller
-typedef enum {
-    WAITING_FOR_RFID,
-    VALIDATING_RFID,
-    WAITING_FOR_PASSCODE,
-    VALIDATING_PASSCODE,
-    ACCESS_GRANTED
-} ControllerState_t;
-
-// Global variables
-volatile ControllerState_t currentState = WAITING_FOR_RFID;
-char storedRfids[5][9] = {"378F1803", "92F80B01"}; //  Stored valid RFIDs
-char storedPasscodes[5][5] = {"1234", "2003", "4561"}; // Stored valid passcodes
-char buffer[128]; // Buffer for receiving data
-char rfid[9];
-char passcode[5];
+#define VALID_CREDENTIAL_COUNT 2
+#define RFID_STRING_LENGTH 9
+#define PASSCODE_STRING_LENGTH 5
+const char VALID_RFID_UIDS[VALID_CREDENTIAL_COUNT][RFID_STRING_LENGTH] = {"378F1803", "92F80B01"}; // Stored valid RFIDs
+const char VALID_PASSCODES[VALID_CREDENTIAL_COUNT][PASSCODE_STRING_LENGTH] = {"1234", "2003"}; // Stored valid passcodes
 
 // Function prototypes
-void setup();
-void waitRfidState();
-void validateRfidState();
-void waitPasscodeState();
-void validatePasscodeState();
-void unlockDoor();
+void unlockDoor(void);
 
 void setup() {
     initializeUsart();
     bluetoothInit();
-    //bluetoothInitController();
+
     sendBluetoothCommand("$$$", "CMD> ");
     // Enable Device Information and UART Transparent services
     sendBluetoothCommand("SS,C0\r\n", "CMD> ");
@@ -63,87 +43,43 @@ void setup() {
 
 int main(void) {
     setup();
-//    while (1) {
-//        usartReadUntil(buffer, ">");
-//        extractLastCharacters(buffer, rfid, 8);
-//        usartWriteCommand(rfid);
-//    }
+
+    char buffer[128];
+
     while (1) {
-        switch (currentState) {
-            case WAITING_FOR_RFID:
-                waitRfidState();
-                break;
+        usartReadUntil(buffer, "|");
+        char rfid_and_passcode[RFID_STRING_LENGTH - 1 + PASSCODE_STRING_LENGTH - 1];
+        extractLastCharacters(buffer, rfid_and_passcode, RFID_STRING_LENGTH - 1 + PASSCODE_STRING_LENGTH - 1);
 
-            case VALIDATING_RFID:
-                validateRfidState();
-                break;
+        char rfid[RFID_STRING_LENGTH] = {0};
+        char passcode[PASSCODE_STRING_LENGTH] = {0};
+        memcpy(rfid, rfid_and_passcode, RFID_STRING_LENGTH - 1);
+        memcpy(passcode, rfid_and_passcode + RFID_STRING_LENGTH - 1, PASSCODE_STRING_LENGTH - 1);
 
-            case WAITING_FOR_PASSCODE:
-                waitPasscodeState();
+        bool isValid = false;
+        for (int i = 0; i < VALID_CREDENTIAL_COUNT; ++i) {
+            if (strcmp(rfid, VALID_RFID_UIDS[i]) == 0 && strcmp(passcode, VALID_PASSCODES[i]) == 0) {
+                isValid = true;
                 break;
-
-            case VALIDATING_PASSCODE:
-                validatePasscodeState();
-                break;
-
-            case ACCESS_GRANTED:
-                unlockDoor();
-                break;
+            }
         }
+        if (isValid) {
+            const char message[5] = { 0x41, 0x4F, 0x4B, 0x7C, 0x00};
+            usartWriteCommand(message);
+        } else {
+            const char message[5] = { 0x45, 0x52, 0x52, 0x7C, 0x00};
+            usartWriteCommand(message);
+            continue;
+        }
+
+        unlockDoor();
     }
 
     return 0;
-}
-
-void waitRfidState() {
-    usartReadUntil(buffer, "|");
-    extractLastCharacters(buffer, rfid, 8);
-    currentState = VALIDATING_RFID;
-}
-
-void validateRfidState() {
-    int valid = 0;
-    for (int i = 0; i < 5; i++) {
-        if (strcmp(rfid, storedRfids[i]) == 0) {
-            valid = 1;
-            break;
-        }
-    }
-    if (valid) {
-        usartWriteCommand("AOK|");
-        currentState = WAITING_FOR_PASSCODE; // Proceed to passcode validation
-    } else {
-        usartWriteCommand("ERR|");
-        currentState = WAITING_FOR_RFID; // Restart RFID validation
-    }
-}
-
-void waitPasscodeState() {
-    usartReadUntil(buffer, "|");
-    extractLastCharacters(buffer, passcode, 4);
-    currentState = VALIDATING_PASSCODE;
-}
-
-void validatePasscodeState() {
-    int valid = 0;
-    for (int i = 0; i < 5; i++) { // Check against stored passcodes
-        if (strcmp(passcode, storedPasscodes[i]) == 0) {
-            valid = 1;
-            break;
-        }
-    }
-    if (valid) {
-        usartWriteCommand("AOK|");
-        currentState = ACCESS_GRANTED; // Proceed to unlock the door
-    } else {
-        usartWriteCommand("ERR|");
-        currentState = WAITING_FOR_PASSCODE; // Retry passcode validation
-    }
 }
 
 void unlockDoor() {
     openLock();
     _delay_ms(5000);
     lockLock();
-    currentState = WAITING_FOR_RFID;
 }
