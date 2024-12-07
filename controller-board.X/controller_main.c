@@ -1,47 +1,85 @@
 #include "../common.X/main.h"
-#include "../common.X/atecc508a.h"
-#include <avr/io.h>
+#include "../common.X/bluetooth.h"
+#include "../common.X/usart.h"
+#include "bluetooth_controller.h"
+#include "doorlock_controller.h"
 
-const uint8_t SENDER_PUBLIC_KEY[64] = {
-    0xAC, 0x11, 0x8B, 0x73, 0x3D, 0x83, 0x50, 0x52, 0x2B, 0xBC, 0xAF, 0x26, 0x83, 0x3E, 0xC4, 0xEF,
-    0x2B, 0xBF, 0x91, 0x4C, 0x0E, 0x56, 0x6D, 0xFA, 0xC0, 0xF8, 0xA0, 0xDD, 0xBC, 0xDA, 0x1D, 0x38,
-    0xE0, 0xBC, 0xAA, 0x00, 0x29, 0x9D, 0x50, 0x84, 0x07, 0xF0, 0x2C, 0x18, 0xBB, 0xC3, 0x1C, 0xE3,
-    0x7C, 0x52, 0x3F, 0xC4, 0x08, 0x64, 0xF7, 0x9B, 0xC2, 0x61, 0xBC, 0x3B, 0x9B, 0xA2, 0xE4, 0x6E
-};
+#include "../common.X/globals.h"
+#include <util/delay.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define VALID_CREDENTIAL_COUNT 2
+#define RFID_STRING_LENGTH 9
+#define PASSCODE_STRING_LENGTH 5
+const char VALID_RFID_UIDS[VALID_CREDENTIAL_COUNT][RFID_STRING_LENGTH] = {"378F1803", "92F80B01"}; // Stored valid RFIDs
+const char VALID_PASSCODES[VALID_CREDENTIAL_COUNT][PASSCODE_STRING_LENGTH] = {"1234", "2003"}; // Stored valid passcodes
+
+// Function prototypes
+void unlockDoor(void);
+
+void setup() {
+    initializeUsart();
+    bluetoothInit();
+
+    sendBluetoothCommand("$$$", "CMD> ");
+    // Enable Device Information and UART Transparent services
+    sendBluetoothCommand("SS,C0\r\n", "CMD> ");
+    // Reboot for the configuration to take effect
+    sendBluetoothCommand("R,1\r\n", "%REBOOT%");
+    // Need to enter command mode again
+    sendBluetoothCommand("$$$", "CMD> ");
+    // Add the peripheral's address to the white list
+    sendBluetoothCommand("JA,0,0491629A182C\r\n", "CMD> ");
+    // Scan for the device
+    sendBluetoothCommand("F\r\n", "0491629A182C"); // Make sure the peripheral is found
+    // Stop scan, return to command mode
+    sendBluetoothCommand("X\r\n", "CMD> ");
+    // Connect to the peripheral's device
+    usartWriteCommand("C,0,0491629A182C\r\n");
+    doorLockInit();
+    lockLock();
+}
 
 int main(void) {
-    //    initializeCommonBoardFunctions("DoorLockContoller");
+    setup();
 
-    // Set the pin to output and clear the success and error LEDs
-    PORTF.DIRSET = PIN4_bm | PIN5_bm;
-    PORTF.OUTSET = PIN4_bm | PIN5_bm;
+    char buffer[128];
 
-    if (!initializeAtecc508a()) {
-        // failure
-        PORTF.OUTCLR = PIN5_bm;
-        return 0;
+    while (1) {
+        usartReadUntil(buffer, "|");
+        char rfid_and_passcode[RFID_STRING_LENGTH - 1 + PASSCODE_STRING_LENGTH - 1];
+        extractLastCharacters(buffer, rfid_and_passcode, RFID_STRING_LENGTH - 1 + PASSCODE_STRING_LENGTH - 1);
+
+        char rfid[RFID_STRING_LENGTH] = {0};
+        char passcode[PASSCODE_STRING_LENGTH] = {0};
+        memcpy(rfid, rfid_and_passcode, RFID_STRING_LENGTH - 1);
+        memcpy(passcode, rfid_and_passcode + RFID_STRING_LENGTH - 1, PASSCODE_STRING_LENGTH - 1);
+
+        bool isValid = false;
+        for (int i = 0; i < VALID_CREDENTIAL_COUNT; ++i) {
+            if (strcmp(rfid, VALID_RFID_UIDS[i]) == 0 && strcmp(passcode, VALID_PASSCODES[i]) == 0) {
+                isValid = true;
+                break;
+            }
+        }
+        if (isValid) {
+            const char message[5] = { 0x41, 0x4F, 0x4B, 0x7C, 0x00};
+            usartWriteCommand(message);
+        } else {
+            const char message[5] = { 0x45, 0x52, 0x52, 0x7C, 0x00};
+            usartWriteCommand(message);
+            continue;
+        }
+
+        unlockDoor();
     }
-
-    const uint8_t message[32] = "message to sign!message to sign!";
-
-    uint8_t signature[64];
-
-    if (!atecc508aSignMessage(message, 0, signature)) {
-        // failure
-        PORTF.OUTCLR = PIN5_bm;
-        return 0;
-    }
-
-    if (atecc508aIsSignatureValid(message, signature, SENDER_PUBLIC_KEY)) {
-        // success
-        PORTF.OUTCLR = PIN4_bm;
-    } else {
-        // failure
-        PORTF.OUTCLR = PIN5_bm;
-        return 0;
-    }
-
-    while (1);
 
     return 0;
+}
+
+void unlockDoor() {
+    openLock();
+    _delay_ms(5000);
+    lockLock();
 }
