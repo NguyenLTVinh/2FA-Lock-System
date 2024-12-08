@@ -106,7 +106,6 @@ bool receiveAtecc508aResponseData(uint8_t * const data, const uint8_t length) {
     }
 
     const uint8_t temp1 = data[RESPONSE_COUNT_INDEX];
-    const uint8_t temp4 = data[1];
     const uint8_t temp2 = data[length - (CRC_SIZE - 1)];
     const uint8_t temp3 = data[length - CRC_SIZE];
 

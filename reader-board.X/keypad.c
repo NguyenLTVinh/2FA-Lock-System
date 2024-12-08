@@ -38,7 +38,7 @@ void keyPadInit()
 
 enum KeypadKey_t getKey()
 {
-    unsigned char row, col;	
+    unsigned char row;	
     
     for (uint8_t col = 0; col < 3; col++) {
         _delay_ms(10);  // wait 10ms for button de-bouncing

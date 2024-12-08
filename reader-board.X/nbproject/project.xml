@@ -25,6 +25,7 @@
         </data>
         <spellchecker-wordlist xmlns="http://www.netbeans.org/ns/spellchecker-wordlist/1">
             <word>datasheet</word>
+            <word>initially</word>
         </spellchecker-wordlist>
     </configuration>
 </project>
