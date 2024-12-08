@@ -1,4 +1,4 @@
-// The code in this file is heavily inspired by the MFRC522 found at https://github.com/miguelbalboa/rfid/
+// The code in this file is heavily inspired by the MFRC522 library found at https://github.com/miguelbalboa/rfid/
 #include "mfrc522.h"
 
 #include "spi.h"

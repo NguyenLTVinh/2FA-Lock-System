@@ -1,3 +1,4 @@
+// The code in this file is heavily inspired by the SparkFun ATECCX08A Arduino Library found at https://github.com/sparkfun/SparkFun_ATECCX08a_Arduino_Library/tree/master
 #include "two_wire_interface.h"
 #include "globals.h"
 #include <util/delay.h>
