@@ -94,19 +94,6 @@ void idleState() {
             // Send the UID to the controller via Bluetooth
             uid_string[8] = '\0';
             currentState = PASSCODE;
-            // uid_string[9] = '\0';
-            // usartWriteCommand(uid_string);
-            // lq_clear(&device);
-            // lq_print(&device, "Reading Card...");
-            // // Wait for the controller response
-            // char response[BUF_SIZE];
-            // usartReadUntil(response, "|");
-            // extractLastCharacters(response, status, 3);
-            // if (strcmp(status, "AOK") == 0) {
-            //     currentState = PASSCODE;
-            // } else {
-            //     currentState = RFIDERR;
-            // }
         }
     }
 }
@@ -183,9 +170,9 @@ void passcodeErrorState() {
     lq_clear(&device);
     lq_print(&device, "Incorrect");
     lq_setCursor(&device, 1, 0);
-    lq_print(&device, "Passcode!");
+    lq_print(&device, "Credentials!");
     _delay_ms(2000);
-    currentState = PASSCODE;
+    currentState = IDLE;
 }
 
 void accessGrantedState() {
