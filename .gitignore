@@ -16,3 +16,4 @@ disassembly/
 *mc3.bak*
 
 *.exe
+.vscode
